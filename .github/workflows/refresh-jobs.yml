@@ -2,22 +2,29 @@ name: Refresh Job Listings
 
 on:
   schedule:
-    # Runs every hour at :05 past the hour (UTC)
+    # Every hour at :05 past the hour (UTC)
     - cron: '5 * * * *'
   workflow_dispatch: # Allow manual trigger from GitHub Actions UI
 
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
+
     steps:
-      - name: Trigger job cache refresh
-        run: |
-          response=$(curl -s -o /dev/null -w "%{http_code}" \
-            "${{ secrets.CRON_URL }}")
-          echo "Response: $response"
-          if [ "$response" != "200" ]; then
-            echo "Refresh failed with status $response"
-            exit 1
-          fi
-          echo "Jobs refreshed successfully"
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Fetch all jobs and write to Vercel Blob
+        run: npx tsx scripts/fetch-and-cache.ts
+        env:
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
