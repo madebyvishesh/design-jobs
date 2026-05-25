@@ -1,100 +1,146 @@
-import Image from "next/image";
+import { Suspense } from 'react';
+import { fetchAllDesignJobs } from '@/lib/fetchAllJobs';
+import Section from '@/components/Section';
+import ParticleCanvas from '@/components/ParticleCanvas';
+import ThemeToggle from '@/components/ThemeToggle';
+import { ArrowRight, Briefcase, Building2, Globe2, Sparkles } from 'lucide-react';
+
+export const revalidate = 3600;
+
+async function JobsContent() {
+  const { aiJobs, allJobs } = await fetchAllDesignJobs();
+  const companies = new Set(allJobs.map(job => job.company)).size;
+  const remoteRoles = allJobs.filter(job => job.isRemote).length;
+
+  const stats = [
+    { label: 'Open roles', value: allJobs.length.toLocaleString(), icon: Briefcase },
+    { label: 'Companies', value: companies.toLocaleString(), icon: Building2 },
+    { label: 'Remote friendly', value: remoteRoles.toLocaleString(), icon: Globe2 },
+    { label: 'AI & frontier', value: aiJobs.length.toLocaleString(), icon: Sparkles },
+  ];
+
+  return (
+    <div className="space-y-4 sm:space-y-8">
+      <div className="flex items-center justify-between gap-3 px-1 text-sm text-muted-foreground sm:hidden">
+        <span><span className="text-foreground">{allJobs.length.toLocaleString()}</span> roles</span>
+        <span><span className="text-foreground">{companies.toLocaleString()}</span> companies</span>
+        <span><span className="text-foreground">{remoteRoles.toLocaleString()}</span> remote</span>
+      </div>
+
+      <div className="hidden grid-cols-2 gap-2 sm:grid sm:gap-2.5 sm:grid-cols-4">
+        {stats.map(({ label, value, icon: Icon }) => (
+          <div
+            key={label}
+            className="radius-surface border border-border bg-card/95 p-2.5 shadow-soft sm:p-3"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] font-medium leading-snug text-muted-foreground sm:text-caption">{label}</span>
+              <Icon size={15} className="shrink-0 text-[hsl(var(--accent-teal))] sm:size-4" />
+            </div>
+            <div className="mt-1.5 text-xl font-medium leading-none text-foreground sm:mt-2 sm:text-2xl">
+              {value}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <Section
+        title="AI & Frontier Companies"
+        jobs={aiJobs}
+        defaultOpen={true}
+        badge="AI"
+      />
+      <Section
+        title="All Design Roles"
+        jobs={allJobs}
+        defaultOpen={false}
+      />
+    </div>
+  );
+}
+
+function JobsLoading() {
+  return (
+    <div className="space-y-8">
+      {[0, 1].map(i => (
+        <div key={i} className="animate-pulse">
+          <div className="radius-control mb-4 h-7 w-56 bg-muted" />
+          <div className="radius-surface overflow-hidden border border-border bg-card">
+            {Array.from({ length: 6 }).map((_, j) => (
+              <div key={j} className="border-b border-border/50 last:border-0 flex items-center gap-4 px-3 py-3">
+                <div className="radius-control h-8 w-8 shrink-0 bg-muted" />
+                <div className="radius-chip h-3.5 w-28 bg-muted" />
+                <div className="radius-chip ml-2 h-3.5 w-40 bg-muted" />
+                <div className="radius-chip ml-2 hidden h-3.5 w-24 bg-muted sm:block" />
+                <div className="radius-control ml-auto h-8 w-16 bg-muted" />
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function Home() {
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="min-h-screen overflow-hidden bg-background">
+      <header className="surface-grid relative overflow-hidden border-b border-border-light">
+        <div className="absolute -inset-x-8 -bottom-24 -top-14 hidden pointer-events-none opacity-60 sm:block">
+          <ParticleCanvas />
+          <div className="absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-background via-background/90 to-transparent" />
         </div>
+
+        <div className="relative mx-auto max-w-[1200px] px-3 py-5 sm:px-6 sm:py-10 md:py-12">
+          <div className="absolute right-3 top-8 z-10 sm:right-6 sm:top-12 md:top-14">
+            <ThemeToggle />
+          </div>
+
+          <div className="hero-enter flex flex-col gap-5 sm:gap-7 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-2xl">
+              <h1 className="text-[2.55rem] font-medium leading-[0.98] tracking-[-0.035em] text-foreground sm:text-display-lg">
+                Design Jobs
+              </h1>
+              <p className="mt-3 max-w-[22rem] text-[13px] leading-5 text-muted-foreground sm:mt-3 sm:max-w-xl sm:text-[15px] sm:leading-6">
+                <span className="sm:hidden">Curated product, UX, brand, motion, and design engineering roles.</span>
+                <span className="hidden sm:inline">A fast, curated board for product, UX, brand, motion, and design engineering roles at ambitious technology companies.</span>
+              </p>
+            </div>
+
+            <a
+              href="#jobs"
+              className="btn-classic-primary inline-flex h-9 w-fit items-center justify-center gap-2 px-3.5 text-sm font-medium sm:h-10 sm:px-4"
+            >
+              Browse roles
+              <ArrowRight size={16} />
+            </a>
+          </div>
+        </div>
+      </header>
+
+      <main id="jobs" className="mx-auto max-w-[1200px] px-3 py-5 sm:px-6 sm:py-8">
+        <Suspense fallback={<JobsLoading />}>
+          <JobsContent />
+        </Suspense>
       </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
+
+      <footer className="border-t border-border-light">
+        <div className="mx-auto flex min-h-16 max-w-[1200px] flex-col gap-2 px-4 py-4 text-caption text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <span>
+            Design Jobs updates hourly via YC, Ashby, Greenhouse, Lever and Remotive.
+          </span>
+          <span>
+            Built with{' '}
+            <a
+              href="https://nextjs.org"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline decoration-dotted decoration-muted-foreground/50 underline-offset-4 hover:decoration-solid hover:decoration-current"
+            >
+              Next.js
+            </a>
+          </span>
+        </div>
       </footer>
     </div>
   );
