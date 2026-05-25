@@ -11,7 +11,7 @@ export const maxDuration = 60;
 
 async function JobsContent() {
   // 1. Try KV cache — instant when warm (production with KV configured)
-  let cached = await getCachedJobs();
+  const cached = await getCachedJobs();
   let aiJobs, allJobs;
 
   if (cached) {
