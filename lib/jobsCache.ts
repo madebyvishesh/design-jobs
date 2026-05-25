@@ -1,36 +1,42 @@
 import type { Job } from '@/types/job';
 
-interface JobsPayload {
+export interface JobsPayload {
   aiJobs: Job[];
   allJobs: Job[];
   fetchedAt: number;
 }
 
-const KV_KEY = 'design_jobs_v1';
-const KV_TTL = 93600; // 26 hours — survives if GitHub Actions misses a run
+const BLOB_FILENAME = 'design-jobs-cache.json';
 
-/** Returns true when Vercel KV env vars are present */
-function isKvConfigured(): boolean {
-  return !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+function isBlobConfigured(): boolean {
+  return !!process.env.BLOB_READ_WRITE_TOKEN;
 }
 
 export async function getCachedJobs(): Promise<JobsPayload | null> {
-  if (!isKvConfigured()) return null;
+  if (!isBlobConfigured()) return null;
   try {
-    const { kv } = await import('@vercel/kv');
-    const data = await kv.get<JobsPayload>(KV_KEY);
-    return data ?? null;
+    const { list } = await import('@vercel/blob');
+    const { blobs } = await list({ prefix: 'design-jobs-cache', limit: 1 });
+    if (!blobs[0]) return null;
+    // Fetch from Vercel's public CDN (fast, globally cached)
+    const res = await fetch(blobs[0].url, { cache: 'no-store' });
+    if (!res.ok) return null;
+    return await res.json() as JobsPayload;
   } catch {
     return null;
   }
 }
 
 export async function setCachedJobs(payload: JobsPayload): Promise<void> {
-  if (!isKvConfigured()) return;
+  if (!isBlobConfigured()) return;
   try {
-    const { kv } = await import('@vercel/kv');
-    await kv.set(KV_KEY, payload, { ex: KV_TTL });
+    const { put } = await import('@vercel/blob');
+    await put(BLOB_FILENAME, JSON.stringify(payload), {
+      access: 'public',
+      addRandomSuffix: false,
+      contentType: 'application/json',
+    });
   } catch {
-    // Silently skip if KV is misconfigured — don't crash the page
+    // Silently skip — don't crash the page if Blob isn't linked yet
   }
 }
