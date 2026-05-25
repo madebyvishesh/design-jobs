@@ -1,0 +1,23 @@
+name: Refresh Job Listings
+
+on:
+  schedule:
+    # Runs every hour at :05 past the hour (UTC)
+    - cron: '5 * * * *'
+  workflow_dispatch: # Allow manual trigger from GitHub Actions UI
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Trigger job cache refresh
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" \
+            "${{ secrets.CRON_URL }}")
+          echo "Response: $response"
+          if [ "$response" != "200" ]; then
+            echo "Refresh failed with status $response"
+            exit 1
+          fi
+          echo "Jobs refreshed successfully"

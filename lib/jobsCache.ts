@@ -7,7 +7,7 @@ interface JobsPayload {
 }
 
 const KV_KEY = 'design_jobs_v1';
-const KV_TTL = 7200; // 2 hours
+const KV_TTL = 93600; // 26 hours — survives if GitHub Actions misses a run
 
 /** Returns true when Vercel KV env vars are present */
 function isKvConfigured(): boolean {
