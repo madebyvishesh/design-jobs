@@ -29,11 +29,6 @@ function isAIFromYC(job: YCJob): boolean {
   return AI_KEYWORDS.some(kw => text.includes(kw)) || AI_TAGS.some(t => text.includes(t));
 }
 
-function extractDomain(slug: string): string {
-  // Many YC companies use slug.com — fallback to empty so Google favicon is skipped
-  return '';
-}
-
 async function fetchYCPage(path: string): Promise<YCJob[]> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
