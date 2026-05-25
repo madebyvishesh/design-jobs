@@ -15,7 +15,7 @@ interface AshbyJob {
 
 async function fetchAshbyJobs(slug: string, name: string, domain: string, batch?: string): Promise<Job[]> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10000);
+  const timeout = setTimeout(() => controller.abort(), 28000);
   try {
     const res = await fetch(`https://api.ashbyhq.com/posting-api/job-board/${slug}`, {
       signal: controller.signal,

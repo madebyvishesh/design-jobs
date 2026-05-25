@@ -6,14 +6,16 @@ import ThemeToggle from '@/components/ThemeToggle';
 import { ArrowRight, Briefcase, Building2, Globe2, Sparkles } from 'lucide-react';
 
 export const revalidate = 3600;
+export const maxDuration = 60;
 
 async function JobsContent() {
   const { aiJobs, allJobs } = await fetchAllDesignJobs();
-  const companies = new Set(allJobs.map(job => job.company)).size;
-  const remoteRoles = allJobs.filter(job => job.isRemote).length;
+  const totalJobs = aiJobs.length + allJobs.length;
+  const companies = new Set([...aiJobs, ...allJobs].map(job => job.company)).size;
+  const remoteRoles = [...aiJobs, ...allJobs].filter(job => job.isRemote).length;
 
   const stats = [
-    { label: 'Open roles', value: allJobs.length.toLocaleString(), icon: Briefcase },
+    { label: 'Open roles', value: totalJobs.toLocaleString(), icon: Briefcase },
     { label: 'Companies', value: companies.toLocaleString(), icon: Building2 },
     { label: 'Remote friendly', value: remoteRoles.toLocaleString(), icon: Globe2 },
     { label: 'AI & frontier', value: aiJobs.length.toLocaleString(), icon: Sparkles },
