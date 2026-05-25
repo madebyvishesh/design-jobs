@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import { fetchAllDesignJobs } from '@/lib/fetchAllJobs';
+import { getCachedJobs, setCachedJobs } from '@/lib/jobsCache';
 import Section from '@/components/Section';
 import ParticleCanvas from '@/components/ParticleCanvas';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -9,7 +10,21 @@ export const revalidate = 3600;
 export const maxDuration = 60;
 
 async function JobsContent() {
-  const { aiJobs, allJobs } = await fetchAllDesignJobs();
+  // 1. Try KV cache — instant when warm (production with KV configured)
+  let cached = await getCachedJobs();
+  let aiJobs, allJobs;
+
+  if (cached) {
+    ({ aiJobs, allJobs } = cached);
+  } else {
+    // 2. Cache miss: fetch live (first load, or local dev without KV)
+    const fresh = await fetchAllDesignJobs();
+    aiJobs = fresh.aiJobs;
+    allJobs = fresh.allJobs;
+    // Store in KV so the next request is instant
+    await setCachedJobs({ aiJobs, allJobs, fetchedAt: Date.now() });
+  }
+
   const totalJobs = aiJobs.length + allJobs.length;
   const companies = new Set([...aiJobs, ...allJobs].map(job => job.company)).size;
   const remoteRoles = [...aiJobs, ...allJobs].filter(job => job.isRemote).length;
@@ -24,7 +39,7 @@ async function JobsContent() {
   return (
     <div className="space-y-4 sm:space-y-8">
       <div className="flex items-center justify-between gap-3 px-1 text-sm text-muted-foreground sm:hidden">
-        <span><span className="text-foreground">{allJobs.length.toLocaleString()}</span> roles</span>
+        <span><span className="text-foreground">{totalJobs.toLocaleString()}</span> roles</span>
         <span><span className="text-foreground">{companies.toLocaleString()}</span> companies</span>
         <span><span className="text-foreground">{remoteRoles.toLocaleString()}</span> remote</span>
       </div>
