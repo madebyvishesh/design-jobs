@@ -12,7 +12,7 @@ interface GHJob {
 
 async function fetchGreenhouseJobs(slug: string, name: string, domain: string, batch?: string): Promise<Job[]> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10000);
+  const timeout = setTimeout(() => controller.abort(), 28000);
   try {
     const res = await fetch(`https://boards-api.greenhouse.io/v1/boards/${slug}/jobs?content=true`, {
       signal: controller.signal,
