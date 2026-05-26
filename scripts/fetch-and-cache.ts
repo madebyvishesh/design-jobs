@@ -34,6 +34,7 @@ async function main() {
   const blob = await put('design-jobs-cache.json', JSON.stringify(payload), {
     access: 'public',
     addRandomSuffix: false,
+    allowOverwrite: true,
     contentType: 'application/json',
     token,
   });

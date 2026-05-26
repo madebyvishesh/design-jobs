@@ -34,6 +34,7 @@ export async function setCachedJobs(payload: JobsPayload): Promise<void> {
     await put(BLOB_FILENAME, JSON.stringify(payload), {
       access: 'public',
       addRandomSuffix: false,
+      allowOverwrite: true,
       contentType: 'application/json',
     });
   } catch {
