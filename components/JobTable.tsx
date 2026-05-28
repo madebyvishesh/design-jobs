@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowUpDown,
+  ArrowUpRight,
   Bookmark,
   BookmarkCheck,
   Check,
@@ -237,71 +238,77 @@ function JobCard({
 }) {
   return (
     <article
-      className="row-enter radius-surface lift-hover border border-border bg-card p-3 shadow-soft"
+      className="row-enter radius-surface lift-hover border border-border bg-card shadow-soft"
       style={{ animationDelay: `${Math.min(index, 8) * 18}ms` }}
     >
-      <div className="flex items-start gap-2.5">
-        <CompanyAvatar job={job} />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2.5">
-            <div className="min-w-0">
-              <h3 className="line-clamp-2 text-sm font-medium leading-5 text-foreground">
-                <HighlightText text={job.title} query={query} />
-              </h3>
-              <button
-                type="button"
-                className="focus-ring radius-chip mt-1 block max-w-full truncate text-left text-xs font-medium text-muted-foreground hover:text-foreground"
-                onClick={() => {
-                  const url = job.companyDomain ? `https://${job.companyDomain}` : job.url;
-                  window.open(url, '_blank', 'noopener,noreferrer');
-                }}
-              >
-                <HighlightText text={job.company} query={query} />
-              </button>
+      <a
+        href={job.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block p-3"
+      >
+        <div className="flex items-start gap-3">
+          <CompanyAvatar job={job} />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <h3 className="line-clamp-2 text-sm font-medium leading-5 text-foreground">
+                  <HighlightText text={job.title} query={query} />
+                </h3>
+                <p className="mt-0.5 truncate text-xs font-medium text-muted-foreground">
+                  <HighlightText text={job.company} query={query} />
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center gap-1.5 pl-1">
+                <button
+                  type="button"
+                  aria-label={saved ? 'Unsave role' : 'Save role'}
+                  title={saved ? 'Unsave role' : 'Save role'}
+                  onClick={e => { e.preventDefault(); e.stopPropagation(); onToggleSaved(); }}
+                  className={`focus-ring radius-control inline-flex h-8 w-8 items-center justify-center border transition-colors ${
+                    saved
+                      ? 'border-[hsl(var(--accent-teal)/0.45)] bg-[hsl(var(--accent-teal)/0.08)] text-[hsl(var(--accent-teal))]'
+                      : 'border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground'
+                  }`}
+                >
+                  {saved ? <BookmarkCheck size={14} /> : <Bookmark size={14} />}
+                </button>
+                <span className="btn-classic-primary inline-flex h-8 w-8 items-center justify-center sm:w-auto sm:px-3">
+                  <ArrowUpRight size={14} className="sm:hidden" />
+                  <span className="hidden text-xs font-medium sm:inline">Apply</span>
+                </span>
+              </div>
             </div>
-            <div className="flex shrink-0 items-center gap-1">
-              <IconButton label={saved ? 'Unsave role' : 'Save role'} onClick={onToggleSaved} active={saved}>
-                {saved ? <BookmarkCheck size={14} /> : <Bookmark size={14} />}
-              </IconButton>
-              <a
-                href={job.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn-classic-primary inline-flex h-8 items-center justify-center px-3 text-xs font-medium"
-              >
-                Apply
-              </a>
-            </div>
-          </div>
 
-          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted-foreground">
-            <span className="inline-flex min-w-0 items-center gap-1.5">
-              <MapPin size={13} className="shrink-0" />
-              <span className="truncate"><HighlightText text={job.location || 'Location not listed'} query={query} /></span>
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <Clock3 size={13} />
-              {formatRelativeDate(job.postedAt)}
-            </span>
-            {job.isRemote && <RemoteBadge />}
-          </div>
-
-          {viewMode === 'detail' && (
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <SourceBadges sources={job.sources} />
-              {job.department && <span className="radius-chip bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">{job.department}</span>}
-              <button
-                type="button"
-                onClick={onCopy}
-                className="focus-ring radius-chip inline-flex items-center gap-1 bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground hover:text-foreground"
-              >
-                {copied ? <Check size={11} /> : <Copy size={11} />}
-                {copied ? 'Copied' : 'Copy'}
-              </button>
+            <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
+              <span className="inline-flex min-w-0 items-center gap-1.5">
+                <MapPin size={12} className="shrink-0" />
+                <span className="truncate"><HighlightText text={job.location || 'Location not listed'} query={query} /></span>
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <Clock3 size={12} />
+                {formatRelativeDate(job.postedAt)}
+              </span>
+              {job.isRemote && <RemoteBadge />}
             </div>
-          )}
+
+            {viewMode === 'detail' && (
+              <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                <SourceBadges sources={job.sources} />
+                {job.department && <span className="radius-chip bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">{job.department}</span>}
+                <button
+                  type="button"
+                  onClick={e => { e.preventDefault(); e.stopPropagation(); onCopy(); }}
+                  className="focus-ring radius-chip inline-flex items-center gap-1 bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground hover:text-foreground"
+                >
+                  {copied ? <Check size={11} /> : <Copy size={11} />}
+                  {copied ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      </a>
     </article>
   );
 }
