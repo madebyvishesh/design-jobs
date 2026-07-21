@@ -70,7 +70,7 @@ async function JobsContent() {
       <Section
         title="All Design Roles"
         jobs={allJobs}
-        defaultOpen={false}
+        defaultOpen={true}
       />
     </div>
   );
