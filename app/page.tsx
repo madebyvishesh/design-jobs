@@ -105,19 +105,19 @@ function JobsLoading() {
 async function LastUpdated() {
   const cached = await getCached();
   const ts = cached?.fetchedAt ?? Date.now();
-  const formatted = new Intl.DateTimeFormat('en-US', {
+  const formatted = new Intl.DateTimeFormat('en-IN', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
-    timeZone: 'UTC',
-    timeZoneName: 'short',
+    hour12: true,
+    timeZone: 'Asia/Kolkata',
   }).format(new Date(ts));
 
   return (
     <span>
-      Last fetched <span className="text-foreground">{formatted}</span>
+      Last fetched <span className="text-foreground">{formatted} IST</span>
     </span>
   );
 }
