@@ -114,7 +114,7 @@ function CompanyCell({ job, query }: { job: Job; query: string }) {
   return (
     <button
       type="button"
-      className="focus-ring radius-control lift-hover flex min-w-0 items-center gap-2.5 text-left"
+      className="focus-ring radius-control lift-hover flex w-full min-w-0 items-center gap-2.5 text-left"
       title={job.company}
       onClick={() => {
         const url = job.companyDomain ? `https://${job.companyDomain}` : job.url;
@@ -122,7 +122,7 @@ function CompanyCell({ job, query }: { job: Job; query: string }) {
       }}
     >
       <CompanyAvatar job={job} size="sm" />
-      <span className="min-w-0">
+      <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-medium text-foreground">
           <HighlightText text={job.company} query={query} />
         </span>
