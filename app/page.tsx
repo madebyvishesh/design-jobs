@@ -6,7 +6,7 @@ import ParticleCanvas from '@/components/ParticleCanvas';
 import ThemeToggle from '@/components/ThemeToggle';
 import { ArrowRight, Briefcase, Building2, Globe2, Sparkles } from 'lucide-react';
 
-export const revalidate = 3600;
+export const revalidate = 1800;
 export const maxDuration = 60;
 
 async function JobsContent() {
