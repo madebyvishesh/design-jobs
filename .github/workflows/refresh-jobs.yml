@@ -2,8 +2,8 @@ name: Refresh Job Listings
 
 on:
   schedule:
-    # Every hour at :05 past the hour (UTC)
-    - cron: '5 * * * *'
+    # Every 30 minutes, at :05 and :35 past the hour (UTC)
+    - cron: '5,35 * * * *'
   workflow_dispatch: # Allow manual trigger from GitHub Actions UI
 
 jobs:
