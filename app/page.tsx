@@ -1,4 +1,4 @@
-import { Suspense } from 'react';
+import { Suspense, cache } from 'react';
 import { fetchAllDesignJobs } from '@/lib/fetchAllJobs';
 import { getCachedJobs, setCachedJobs } from '@/lib/jobsCache';
 import Section from '@/components/Section';
@@ -9,9 +9,12 @@ import { ArrowRight, Briefcase, Building2, Globe2, Sparkles } from 'lucide-react
 export const revalidate = 1800;
 export const maxDuration = 60;
 
+// Memoize the blob read so JobsContent and the footer timestamp share one fetch
+const getCached = cache(getCachedJobs);
+
 async function JobsContent() {
   // 1. Try KV cache — instant when warm (production with KV configured)
-  const cached = await getCachedJobs();
+  const cached = await getCached();
   let aiJobs, allJobs;
 
   if (cached) {
@@ -99,6 +102,26 @@ function JobsLoading() {
   );
 }
 
+async function LastUpdated() {
+  const cached = await getCached();
+  const ts = cached?.fetchedAt ?? Date.now();
+  const formatted = new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone: 'UTC',
+    timeZoneName: 'short',
+  }).format(new Date(ts));
+
+  return (
+    <span>
+      Last fetched <span className="text-foreground">{formatted}</span>
+    </span>
+  );
+}
+
 export default function Home() {
   return (
     <div className="min-h-screen overflow-hidden bg-background">
@@ -144,19 +167,11 @@ export default function Home() {
       <footer className="border-t border-border-light">
         <div className="mx-auto flex min-h-16 max-w-[1200px] flex-col gap-2 px-4 py-4 text-caption text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <span>
-            Design Jobs updates hourly via YC, Ashby, Greenhouse, Workday, Lever and Remotive.
+            Design Jobs updates every 30 minutes via YC, Ashby, Greenhouse, Workday, Lever and Remotive.
           </span>
-          <span>
-            Built with{' '}
-            <a
-              href="https://nextjs.org"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline decoration-dotted decoration-muted-foreground/50 underline-offset-4 hover:decoration-solid hover:decoration-current"
-            >
-              Next.js
-            </a>
-          </span>
+          <Suspense fallback={<span>Loading…</span>}>
+            <LastUpdated />
+          </Suspense>
         </div>
       </footer>
     </div>
