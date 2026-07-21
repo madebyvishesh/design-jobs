@@ -61,6 +61,9 @@ const WORKDAY_COMPANIES: WorkdayCompany[] = [
   { tenant: 'zillow', dc: 'wd5', site: 'Zillow_Group_External', name: 'Zillow', domain: 'zillow.com' },
   { tenant: 'gilead', dc: 'wd1', site: 'gileadcareers', name: 'Gilead Sciences', domain: 'gilead.com' },
   { tenant: 'blackrock', dc: 'wd1', site: 'BlackRock_Professional', name: 'BlackRock', domain: 'blackrock.com' },
+  { tenant: 'capitalone', dc: 'wd12', site: 'Capital_One', name: 'Capital One', domain: 'capitalone.com' },
+  { tenant: 'cisco', dc: 'wd5', site: 'cisco_careers', name: 'Cisco', domain: 'cisco.com' },
+  { tenant: 'cvshealth', dc: 'wd1', site: 'CVS_Health_Careers', name: 'CVS Health', domain: 'cvshealth.com' },
 ];
 
 // "Posted 5 Days Ago" / "Posted Today" / "Posted 30+ Days Ago" -> ISO date
