@@ -58,6 +58,14 @@ const EXCLUDE_KEYWORDS = [
   'mechanical design', 'electrical design', 'structural design',
   'chip design', 'pcb design', 'vlsi', 'fpga', 'asic',
   'circuit design', 'physical design engineer',
+  // Hardware / silicon design engineering (not product/UX design)
+  'hardware design', 'board design', 'interconnect', 'silicon',
+  'analog design', 'rtl design', 'soc design', 'co-design',
+  'design verification', 'signal integrity', 'thermal design',
+  'rf design', 'power design', 'mechanical design engineer',
+  'layout design engineer', 'verification engineer', 'design for test',
+  'mask design', 'floorplan', 'firmware', 'memory subsystem',
+  'system design engineer', 'design engineer - memory', 'clock design',
 ];
 
 export function isDesignRole(title: string): boolean {

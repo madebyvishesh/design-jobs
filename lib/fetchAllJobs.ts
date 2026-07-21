@@ -4,6 +4,7 @@ import { fetchAllAshbyJobs } from './fetchers/ashby';
 import { fetchAllGreenhouseJobs } from './fetchers/greenhouse';
 import { fetchAllLeverJobs } from './fetchers/lever';
 import { fetchRemotiveJobs } from './fetchers/remotive';
+import { fetchAllWorkdayJobs } from './fetchers/workday';
 import { isDesignRole } from './filterJobs';
 
 function deduplicateAndMergeSources(jobs: Job[]): Job[] {
@@ -33,6 +34,7 @@ function deduplicateAndMergeSources(jobs: Job[]): Job[] {
         ats: mergedSources.includes('ashby') ? 'ashby'
           : mergedSources.includes('greenhouse') ? 'greenhouse'
           : mergedSources.includes('lever') ? 'lever'
+          : mergedSources.includes('workday') ? 'workday'
           : mergedSources.includes('yc') ? 'yc'
           : 'remotive',
         // Pull batch badge and logo from YC entry since it has richer company metadata
@@ -51,12 +53,13 @@ export async function fetchAllDesignJobs(): Promise<{
   aiJobs: Job[];
   allJobs: Job[];
 }> {
-  const [ycResult, ashbyResult, ghResult, leverResult, remotiveResult] = await Promise.allSettled([
+  const [ycResult, ashbyResult, ghResult, leverResult, remotiveResult, workdayResult] = await Promise.allSettled([
     fetchYCJobs(),
     fetchAllAshbyJobs(),
     fetchAllGreenhouseJobs(),
     fetchAllLeverJobs(),
     fetchRemotiveJobs(),
+    fetchAllWorkdayJobs(),
   ]);
 
   const allRaw: Job[] = [
@@ -65,6 +68,7 @@ export async function fetchAllDesignJobs(): Promise<{
     ...(ghResult.status === 'fulfilled' ? ghResult.value : []),
     ...(leverResult.status === 'fulfilled' ? leverResult.value : []),
     ...(remotiveResult.status === 'fulfilled' ? remotiveResult.value : []),
+    ...(workdayResult.status === 'fulfilled' ? workdayResult.value : []),
   ].filter(job => isDesignRole(job.title));
 
   const deduped = deduplicateAndMergeSources(allRaw);
