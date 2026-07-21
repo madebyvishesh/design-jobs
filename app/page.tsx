@@ -144,7 +144,7 @@ export default function Home() {
       <footer className="border-t border-border-light">
         <div className="mx-auto flex min-h-16 max-w-[1200px] flex-col gap-2 px-4 py-4 text-caption text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <span>
-            Design Jobs updates hourly via YC, Ashby, Greenhouse, Lever and Remotive.
+            Design Jobs updates hourly via YC, Ashby, Greenhouse, Workday, Lever and Remotive.
           </span>
           <span>
             Built with{' '}

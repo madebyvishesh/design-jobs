@@ -1,4 +1,4 @@
-export type AtsSource = 'ashby' | 'greenhouse' | 'lever' | 'yc' | 'remotive';
+export type AtsSource = 'ashby' | 'greenhouse' | 'lever' | 'yc' | 'remotive' | 'workday';
 
 export type Job = {
   id: string;

@@ -40,6 +40,7 @@ const ATS_LABELS: Record<AtsSource, string> = {
   greenhouse: 'GH',
   lever: 'LEVER',
   remotive: 'REMOTIVE',
+  workday: 'WORKDAY',
 };
 
 const ATS_COLORS: Record<AtsSource, string> = {
@@ -48,6 +49,7 @@ const ATS_COLORS: Record<AtsSource, string> = {
   greenhouse: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-400/15 dark:text-emerald-200',
   lever: 'bg-sky-100 text-sky-800 dark:bg-sky-400/15 dark:text-sky-200',
   remotive: 'bg-rose-100 text-rose-800 dark:bg-rose-400/15 dark:text-rose-200',
+  workday: 'bg-amber-100 text-amber-800 dark:bg-amber-400/15 dark:text-amber-200',
 };
 
 function isKnownRecentDate(dateStr: string, days: number) {
@@ -134,7 +136,7 @@ function CompanyCell({ job, query }: { job: Job; query: string }) {
 
 function SourceBadges({ sources }: { sources: AtsSource[] }) {
   const sorted = [...sources].sort((a, b) => {
-    const order: AtsSource[] = ['yc', 'ashby', 'greenhouse', 'lever', 'remotive'];
+    const order: AtsSource[] = ['yc', 'ashby', 'greenhouse', 'lever', 'remotive', 'workday'];
     return order.indexOf(a) - order.indexOf(b);
   });
 
@@ -463,6 +465,7 @@ export default function JobTable({ jobs }: Props) {
       <option value="greenhouse">Greenhouse</option>
       <option value="lever">Lever</option>
       <option value="remotive">Remotive</option>
+      <option value="workday">Workday</option>
     </>
   );
 
