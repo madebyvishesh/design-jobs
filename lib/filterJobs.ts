@@ -68,7 +68,8 @@ const EXCLUDE_KEYWORDS = [
   'system design engineer', 'design engineer - memory', 'clock design',
 ];
 
-export function isDesignRole(title: string): boolean {
+export function isDesignRole(title: string | undefined | null): boolean {
+  if (!title) return false;
   const lower = title.toLowerCase();
   if (EXCLUDE_KEYWORDS.some(kw => lower.includes(kw))) return false;
   if (INCLUDE_KEYWORDS.some(kw => lower.includes(kw))) return true;
