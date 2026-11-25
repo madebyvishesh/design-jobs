@@ -40,6 +40,11 @@ function JobLocation({ job, query }: { job: Job; query: string }) {
 
 const columns = { title: 'Role', company: 'Company', location: 'Location', postedAt: 'Listing date' };
 type SortKey = keyof typeof columns;
+function sortLabel(key: SortKey, ascending: boolean) {
+  if (key === 'postedAt') return ascending ? 'Oldest first' : 'Newest first';
+  return columns[key] + (ascending ? ' A–Z' : ' Z–A');
+}
+
 type Scope = 'All roles' | 'AI companies' | 'Saved';
 const scopes: Scope[] = ['All roles', 'AI companies', 'Saved'];
 const mobileQuery = '(max-width: 679px)';
@@ -194,7 +199,7 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
     if (adding) ids.add(job.id);
     else ids.delete(job.id);
     if (!adding && scope === 'Saved') {
-      const row = trigger.closest('tr');
+      const row = trigger.closest('.listing-row');
       const adjacent = row?.nextElementSibling ?? row?.previousElementSibling;
       const nextButton = adjacent?.querySelector<HTMLButtonElement>('.save-job');
       if (nextButton) nextButton.focus();
@@ -291,6 +296,8 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
     }
   }
 
+  const checkedTime = <time dateTime={new Date(fetchedAt).toISOString()}>{checked} IST</time>;
+  const customSort = sortKey !== 'postedAt' || ascending;
   return (
     <div className="job-board">
       <div className="board-width browse-tools">
@@ -298,9 +305,10 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
           <p><strong>Product, UX, brand and motion roles</strong> <span className="text-unit">at {overview.companies} companies.</span></p>
           <div className="board-summary">
             <span>{overview.remote} remote roles</span>
-            <span>Last checked <time dateTime={new Date(fetchedAt).toISOString()}>{checked} IST</time></span>
+            <span>Last checked {checkedTime}</span>
           </div>
         </div>
+        <p className="tablet-timestamp">Last checked {checkedTime}</p>
         <div className="board-toolbar">
           <div className="board-search">
             <Search size={20} aria-hidden="true" />
@@ -313,7 +321,7 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
             <button type="button" className="board-control" ref={filterTrigger} aria-expanded={filtersOpen} aria-controls="board-filters" onClick={() => setFiltersOpen(!filtersOpen)}>
               <SlidersHorizontal size={15} />Filters{(week || source !== 'all') && <Check size={14} />}
             </button>
-            <button type="button" className="board-control" title="Show job details" aria-pressed={detail} onClick={toggleDetail}>
+            <button type="button" className="board-control desktop-details" title="Show job details" aria-pressed={detail} onClick={toggleDetail}>
               {detail ? <List size={16} /> : <Rows3 size={16} />} Details
             </button>
           </div>
@@ -328,9 +336,10 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
             <option value="all">All portals</option>{Object.entries(sources).map(([id, name]) => <option key={id} value={id}>{name}</option>)}
           </select></label>
           <label>Sort by<select value={sortKey + (ascending ? '+' : '-')} onChange={e => sortBy(e.target.value.slice(0, -1) as SortKey, e.target.value.endsWith('+'))}>
-            {Object.entries(columns).flatMap(([id, name]) => ['+', '-'].map(dir =>
-              <option key={id + dir} value={id + dir}>{id === 'postedAt' ? (dir === '+' ? 'Oldest first' : 'Newest first') : name + (dir === '+' ? ' A–Z' : ' Z–A')}</option>))}
+            {Object.keys(columns).flatMap(id => ['+', '-'].map(dir =>
+              <option key={id + dir} value={id + dir}>{sortLabel(id as SortKey, dir === '+')}</option>))}
           </select></label>
+          <label className="board-control compact-details"><input type="checkbox" checked={detail} onChange={toggleDetail} />Show job details</label>
           <label className="board-control"><input type="checkbox" checked={week} onChange={e => { setWeek(e.target.checked); setPage(0); }} />Posted in the last 7 days</label>
         </div>
       </div>
@@ -346,48 +355,63 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
             </div>
             <div className="results-summary">
               {source !== 'all' && <span className="active-portal">{sources[source as AtsSource]}</span>}
+              {week && <span>Posted in the last 7 days</span>}
               <h2 tabIndex={-1} ref={results} aria-live="polite" aria-atomic="true">
                 {matches.length ? (start + 1) + '–' + end + ' of ' + matches.length + ' roles' : '0 matching roles'}
               </h2>
+              <span className={customSort ? 'sort-summary' : 'sort-summary default-sort'}>{sortLabel(sortKey, ascending)}</span>
+              <details className="compact-overview">
+                <summary>About these listings</summary>
+                <p>{overview.companies} companies · {overview.remote} remote roles</p>
+                <p className="phone-timestamp">Last checked {checkedTime}</p>
+              </details>
               {hasFilters && matches.length > 0 && <button type="button" onClick={resetFilters}>Clear filters</button>}
             </div>
           </div>
-          {visible.length ? <table className="listings-table" aria-label="Design job listings">
-            <thead><tr>{(Object.keys(columns) as SortKey[]).map(key => <th key={key} scope="col" aria-sort={key === sortKey ? (ascending ? 'ascending' : 'descending') : undefined}>
-              <button type="button" onClick={() => sortBy(key)}>{columns[key]}{key === sortKey && (ascending ? <ArrowUp size={13} /> : <ArrowDown size={13} />)}</button>
-            </th>)}
-              <th scope="col" className="portal-heading">Job portal</th>
-              <th scope="col"><span className="sr-only">Actions</span></th>
-            </tr></thead>
-            <tbody>{visible.map(job => <tr key={job.id}>
-              <td className="role-cell">
-                <a id={'listing-' + job.id} href={job.url} target="_blank" rel="noopener noreferrer" className="role-title"><HighlightText text={job.title} query={query} /></a>
-                {detail && job.department && <div className="role-detail">{job.department}</div>}
-              </td>
-              <td className="company-cell"><a href={job.companyDomain ? 'https://' + job.companyDomain : job.url} target="_blank" rel="noopener noreferrer">
-                <CompanyAvatar job={job} size="sm" /><span><HighlightText text={job.company} query={query} />{detail && job.batch && <small>{job.batch}</small>}</span>
-              </a></td>
-              <td className="location-cell">
-                <JobLocation job={job} query={query} />
-              </td>
-              <td className="date-cell"><ListingDate job={job} currentYear={snapshotYear} /></td>
-              <td className="portal-cell">
-                <div className="listing-portals" role="group" aria-label="Job portals">
-                  <span className="portal-caption">Via</span>
-                  {listingSources(job).map(id => (
-                    <span key={id} className={'portal-badge ' + portalColors[id]}>{sources[id]}</span>
-                  ))}
+          {visible.length ? <div className="listings-table" role="table" aria-label="Design job listings">
+            <div className="listing-head" role="row">
+              {(Object.keys(columns) as SortKey[]).map(key => <div key={key} role="columnheader" aria-sort={key === sortKey ? (ascending ? 'ascending' : 'descending') : undefined}>
+                <button type="button" onClick={() => sortBy(key)}>{columns[key]}{key === sortKey && (ascending ? <ArrowUp size={13} /> : <ArrowDown size={13} />)}</button>
+                <span className="compact-column-name">{columns[key]}</span>
+              </div>)}
+              <div role="columnheader">Job portal</div>
+              <div role="columnheader"><span className="sr-only">Actions</span></div>
+            </div>
+            <div role="rowgroup">{visible.map(job => <div className="listing-row" role="row" key={job.id}>
+              <div className="listing-identity" role="presentation">
+                <div role="cell" className="role-cell">
+                  <a id={'listing-' + job.id} href={job.url} target="_blank" rel="noopener noreferrer" className="role-title"><HighlightText text={job.title} query={query} /></a>
+                  {detail && job.department && <div className="role-detail">{job.department}</div>}
                 </div>
-              </td>
-              <td className="action-cell"><div>
-                {detail && <button type="button" title={copiedId === job.id ? 'Link copied' : 'Copy job link'} aria-label={'Copy link to ' + job.title} onClick={event => copy(job, event.currentTarget)}>{copiedId === job.id ? <Check size={15} /> : <Copy size={15} />}</button>}
-                <button type="button" className="save-job" title={saved.has(job.id) ? 'Remove from saved roles' : 'Save role'} aria-label={'Save ' + job.title + ' at ' + job.company} aria-pressed={saved.has(job.id)} onClick={event => toggleSaved(job, event.currentTarget)}>
-                  {saved.has(job.id) ? <BookmarkCheck size={17} /> : <Bookmark size={17} />}
-                </button>
-                <a href={job.url} target="_blank" rel="noopener noreferrer" aria-label={'Apply for ' + job.title + ' at ' + job.company}>Apply <ArrowUpRight size={14} aria-hidden="true" /></a>
-              </div></td>
-            </tr>)}</tbody>
-          </table> : <div className="board-empty">
+                <div role="cell" className="company-cell"><a href={job.companyDomain ? 'https://' + job.companyDomain : job.url} target="_blank" rel="noopener noreferrer">
+                  <CompanyAvatar job={job} size="sm" /><span><HighlightText text={job.company} query={query} />{detail && job.batch && <small>{job.batch}</small>}</span>
+                </a></div>
+              </div>
+              <div role="cell" className="location-cell">
+                <JobLocation job={job} query={query} />
+              </div>
+              <div className="listing-foot" role="presentation">
+                <div className="listing-attribution" role="presentation">
+                  <div role="cell" className="date-cell"><ListingDate job={job} currentYear={snapshotYear} /></div>
+                  <div role="cell" className="portal-cell">
+                    <div className="listing-portals" role="group" aria-label="Job portals">
+                      <span className="portal-caption">Via</span>
+                      {listingSources(job).map(id => (
+                        <span key={id} data-portal={id} className={'portal-badge ' + portalColors[id]}>{sources[id]}</span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div role="cell" className="action-cell"><div>
+                  {detail && <button type="button" title={copiedId === job.id ? 'Link copied' : 'Copy job link'} aria-label={'Copy link to ' + job.title} onClick={event => copy(job, event.currentTarget)}>{copiedId === job.id ? <Check size={15} /> : <Copy size={15} />}</button>}
+                  <button type="button" className="save-job" title={saved.has(job.id) ? 'Remove from saved roles' : 'Save role'} aria-label={'Save ' + job.title + ' at ' + job.company} aria-pressed={saved.has(job.id)} onClick={event => toggleSaved(job, event.currentTarget)}>
+                    {saved.has(job.id) ? <BookmarkCheck size={17} /> : <Bookmark size={17} />}
+                  </button>
+                  <a href={job.url} target="_blank" rel="noopener noreferrer" aria-label={'Apply for ' + job.title + ' at ' + job.company}>Apply <ArrowUpRight size={14} aria-hidden="true" /></a>
+                </div></div>
+              </div>
+            </div>)}</div>
+          </div> : <div className="board-empty">
             <h3>{emptySaved ? 'No saved roles yet' : scope === 'Saved' ? 'No saved roles match your filters' : 'No matching roles'}</h3>
             <p>{emptySaved ? 'Use the bookmark beside a role to keep it here.' : 'Try another search or clear your filters.'}</p>
             <button ref={emptyAction} className="board-control" onClick={() => { resetFilters(); if (emptySaved || !hasFilters) setScope('All roles'); }}>{emptySaved || !hasFilters ? 'Browse all roles' : 'Clear filters'}</button>
