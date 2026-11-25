@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpRight, Bookmark, BookmarkCheck, Check, Copy, Globe2, List, Rows3, Search, SlidersHorizontal, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpRight, Bookmark, BookmarkCheck, Check, ChevronDown, Copy, Globe2, List, Rows3, Search, SlidersHorizontal, X } from 'lucide-react';
 import type { Job, AtsSource } from '@/types/job';
 
 const PAGE_SIZE = 50;
@@ -146,6 +146,7 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
   const [saved, setSaved] = useState(new Set<string>());
   const [detail, setDetail] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [portalsOpen, setPortalsOpen] = useState(false);
   const [range, setRange] = useState({ first: 0, last: 0 });
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const storageUnavailable = useRef(false);
@@ -226,6 +227,26 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
     setSortKey(key); setAscending(asc); setPage(0);
   }
 
+  const overview = useMemo(() => {
+    const counts = new Map<AtsSource, number>();
+    const companies = new Set<string>();
+    let remoteCount = 0;
+    for (const job of jobs) {
+      companies.add(job.company);
+      if (job.isRemote) remoteCount++;
+      new Set(listingSources(job)).forEach(id => {
+        counts.set(id, (counts.get(id) ?? 0) + 1);
+      });
+    }
+    const portals = Array.from(counts).sort((a, b) => b[1] - a[1] || sources[a[0]].localeCompare(sources[b[0]]));
+    return { companies: companies.size, remoteCount, portals };
+  }, [jobs]);
+
+  function choosePortal(value: string) {
+    setSource(value);
+    setPage(0);
+  }
+
   const savedCount = jobs.filter(job => saved.has(job.id)).length;
   const matches = useMemo(() => {
     const filtered = jobs.filter(job => {
@@ -289,11 +310,28 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
   return (
     <div className="job-board">
       <div className="directory-intro">
-        <p><strong>{jobs.length} design jobs</strong> <span className="text-unit">across {new Set(jobs.map(job => job.company)).size} companies.</span></p>
-        <div className="board-summary">
-          <span>{jobs.filter(job => job.isRemote).length} remote roles</span>
-          <span>Last checked <time dateTime={new Date(fetchedAt).toISOString()}>{checked} IST</time></span>
+        <div className="directory-overview">
+          <h2>{jobs.length.toLocaleString('en-US')} open roles</h2>
+          <p>Across <strong>{overview.companies} companies</strong> · <strong>{overview.remoteCount} remote roles</strong></p>
+          <div className="board-summary">Last checked <time dateTime={new Date(fetchedAt).toISOString()}>{checked} IST</time></div>
         </div>
+        {overview.portals.length > 0 && <section className="portal-index" aria-labelledby="portal-index-title">
+          <h2 id="portal-index-title">
+            <span>Browse by job portal</span>
+            <button type="button" aria-expanded={portalsOpen} aria-controls="portal-index-list" onClick={() => setPortalsOpen(!portalsOpen)}>
+              Browse by job portal <ChevronDown size={15} aria-hidden="true" />
+            </button>
+          </h2>
+          <div className="portal-index-list" id="portal-index-list" data-open={portalsOpen}>
+            {overview.portals.map(([id, count]) => <button type="button" key={id}
+              aria-label={sources[id] + ', ' + count + ' roles'} aria-pressed={source === id}
+              onClick={() => choosePortal(source === id ? 'all' : id)}>
+              <span className="portal-index-name">{sources[id]}</span>
+              <span className="portal-track" aria-hidden="true"><i style={{ width: (100 * count / overview.portals[0][1]) + '%' }} /></span>
+              <span className="portal-count">{count}</span>
+            </button>)}
+          </div>
+        </section>}
       </div>
       <div className="board-toolbar">
         <div className="board-search">
@@ -318,7 +356,7 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
           filterTrigger.current?.focus();
         }
       }}>
-        <label>Job portal<select value={source} onChange={e => { setSource(e.target.value); setPage(0); }}>
+        <label>Job portal<select value={source} onChange={e => choosePortal(e.target.value)}>
           <option value="all">All portals</option>{Object.entries(sources).map(([id, name]) => <option key={id} value={id}>{name}</option>)}
         </select></label>
         <label>Sort by<select value={sortKey + (ascending ? '+' : '-')} onChange={e => sortBy(e.target.value.slice(0, -1) as SortKey, e.target.value.endsWith('+'))}>
@@ -336,6 +374,7 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
           </button>)}
         </div>
         <div className="results-summary">
+          {source !== 'all' && <span className="active-portal">{sources[source as AtsSource]}</span>}
           <h2 tabIndex={-1} ref={results} aria-live="polite" aria-atomic="true">
             {matches.length ? (start + 1) + '–' + end + ' of ' + matches.length + ' roles' : '0 matching roles'}
           </h2>
@@ -374,7 +413,7 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
             <button type="button" className="save-job" title={saved.has(job.id) ? 'Remove from saved roles' : 'Save role'} aria-label={'Save ' + job.title + ' at ' + job.company} aria-pressed={saved.has(job.id)} onClick={event => toggleSaved(job, event.currentTarget)}>
               {saved.has(job.id) ? <BookmarkCheck size={17} /> : <Bookmark size={17} />}
             </button>
-            <a href={job.url} target="_blank" rel="noopener noreferrer" aria-label={'Apply for ' + job.title + ' at ' + job.company}>Apply <ArrowUpRight size={14} /></a>
+            <a href={job.url} target="_blank" rel="noopener noreferrer" aria-label={'Apply for ' + job.title + ' at ' + job.company}>Apply <ArrowUpRight size={14} aria-hidden="true" /></a>
           </div></td>
         </tr>)}</tbody>
       </table> : <div className="board-empty">
