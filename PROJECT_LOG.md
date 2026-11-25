@@ -19,3 +19,4 @@ A public board for finding and saving design vacancies. Next.js and React serve 
 - Remote roles show a high-contrast green globe badge before their location in both layouts. The location still shows any geographic restrictions supplied by the employer.
 - Simplified the masthead, grouped search with its filters and gave the results a quieter, divided-list layout. Portal names and remote status stay visible in both themes.
 - Reworked tablet rows to pair job title and employer, shortened the introduction, labeled the details and portal controls, and kept dates and location qualifiers together.
+- Control-by-control review: grouped mobile filters, aligned listing metadata independently of row actions, and restored focus after empty searches and shortlist removals.

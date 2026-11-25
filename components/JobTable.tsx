@@ -42,7 +42,7 @@ const columns = { title: 'Role', company: 'Company', location: 'Location', poste
 type SortKey = keyof typeof columns;
 type Scope = 'All roles' | 'AI companies' | 'Saved';
 const scopes: Scope[] = ['All roles', 'AI companies', 'Saved'];
-const mobileQuery = '(max-width: 799px)';
+const mobileQuery = '(max-width: 679px)';
 function subscribeLayout(listener: () => void) {
   const query = window.matchMedia(mobileQuery);
   query.addEventListener('change', listener);
@@ -153,7 +153,12 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
     setRange({ first: index, last: index });
   }
   const [message, setMessage] = useState('');
+  const [notice, setNotice] = useState('');
   const input = useRef<HTMLInputElement>(null);
+  const noticeTrigger = useRef<HTMLElement | null>(null);
+  const filterTrigger = useRef<HTMLButtonElement>(null);
+  const emptyAction = useRef<HTMLButtonElement>(null);
+  const firstNewRow = useRef<string | null>(null);
   const results = useRef<HTMLHeadingElement>(null);
   const mobile = useSyncExternalStore(subscribeLayout, onMobile, serverMobile);
   const query = search.trim().toLowerCase();
@@ -180,7 +185,7 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
     };
   }, []);
 
-  function toggleSaved(job: Job) {
+  function toggleSaved(job: Job, trigger: HTMLButtonElement) {
     let ids = new Set(saved);
     if (!storageUnavailable.current) {
       try { ids = readSaved(); } catch { /* Use the session copy. */ }
@@ -188,13 +193,21 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
     const adding = !ids.has(job.id);
     if (adding) ids.add(job.id);
     else ids.delete(job.id);
+    if (!adding && scope === 'Saved') {
+      const row = trigger.closest('tr');
+      const adjacent = row?.nextElementSibling ?? row?.previousElementSibling;
+      const nextButton = adjacent?.querySelector<HTMLButtonElement>('.save-job');
+      if (nextButton) nextButton.focus();
+      else requestAnimationFrame(() => (emptyAction.current ?? results.current)?.focus());
+    }
     setSaved(ids);
     try {
       localStorage.setItem(SAVED_KEY, JSON.stringify(Array.from(ids)));
       setMessage((adding ? 'Saved ' : 'Removed ') + job.title);
     } catch {
       storageUnavailable.current = true;
-      setMessage('Bookmark changed for this visit. Browser storage is unavailable.');
+      noticeTrigger.current = trigger;
+      setNotice('Saved roles will last for this visit. Browser storage is unavailable.');
     }
   }
 
@@ -206,6 +219,7 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
 
   function resetFilters() {
     setSearch(''); setRemote(false); setWeek(false); setSource('all'); setPage(0);
+    input.current?.focus();
   }
 
   function sortBy(key: SortKey, asc = sortKey === key ? !ascending : key !== 'postedAt') {
@@ -255,12 +269,21 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
     return () => window.clearTimeout(timer);
   }, [copiedId]);
 
-  async function copy(job: Job) {
+  useEffect(() => {
+    if (!firstNewRow.current) return;
+    document.getElementById(firstNewRow.current)?.focus({ preventScroll: true });
+    firstNewRow.current = null;
+  }, [range]);
+
+  async function copy(job: Job, trigger: HTMLButtonElement) {
     try {
       await navigator.clipboard.writeText(job.url);
       setCopiedId(job.id);
       setMessage('Copied link to ' + job.title);
-    } catch { setMessage('Could not copy the link. Use the role title to open the listing.'); }
+    } catch {
+      noticeTrigger.current = trigger;
+      setNotice('Could not copy the link. Open the listing from its title.');
+    }
   }
 
   return (
@@ -281,7 +304,7 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
         </div>
         <div className="board-options">
           <label className="board-control"><input type="checkbox" checked={remote} onChange={e => { setRemote(e.target.checked); setPage(0); }} />Remote only</label>
-          <button type="button" className="board-control" aria-expanded={filtersOpen} aria-controls="board-filters" onClick={() => setFiltersOpen(!filtersOpen)}>
+          <button type="button" className="board-control" ref={filterTrigger} aria-expanded={filtersOpen} aria-controls="board-filters" onClick={() => setFiltersOpen(!filtersOpen)}>
             <SlidersHorizontal size={15} />Filters{(week || source !== 'all') && <Check size={14} />}
           </button>
           <button type="button" className="board-control" title="Show job details" aria-pressed={detail} onClick={toggleDetail}>
@@ -289,7 +312,12 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
           </button>
         </div>
       </div>
-      <div id="board-filters" className="board-filters" hidden={!filtersOpen}>
+      <div id="board-filters" className="board-filters" hidden={!filtersOpen} onKeyDown={event => {
+        if (event.key === 'Escape') {
+          setFiltersOpen(false);
+          filterTrigger.current?.focus();
+        }
+      }}>
         <label>Job portal<select value={source} onChange={e => { setSource(e.target.value); setPage(0); }}>
           <option value="all">All portals</option>{Object.entries(sources).map(([id, name]) => <option key={id} value={id}>{name}</option>)}
         </select></label>
@@ -311,7 +339,7 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
           <h2 tabIndex={-1} ref={results} aria-live="polite" aria-atomic="true">
             {matches.length ? (start + 1) + '–' + end + ' of ' + matches.length + ' roles' : '0 matching roles'}
           </h2>
-          {hasFilters && <button type="button" onClick={resetFilters}>Clear filters</button>}
+          {hasFilters && matches.length > 0 && <button type="button" onClick={resetFilters}>Clear filters</button>}
         </div>
       </div>
       {visible.length ? <table className="listings-table" aria-label="Design job listings">
@@ -323,7 +351,7 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
         </tr></thead>
         <tbody>{visible.map(job => <tr key={job.id}>
           <td className="role-cell">
-            <a href={job.url} target="_blank" rel="noopener noreferrer" className="role-title"><HighlightText text={job.title} query={query} /></a>
+            <a id={'listing-' + job.id} href={job.url} target="_blank" rel="noopener noreferrer" className="role-title"><HighlightText text={job.title} query={query} /></a>
             {detail && job.department && <div className="role-detail">{job.department}</div>}
           </td>
           <td className="company-cell"><a href={job.companyDomain ? 'https://' + job.companyDomain : job.url} target="_blank" rel="noopener noreferrer">
@@ -342,8 +370,8 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
             </div>
           </td>
           <td className="action-cell"><div>
-            {detail && <button type="button" aria-label={'Copy link to ' + job.title} onClick={() => copy(job)}>{copiedId === job.id ? <Check size={15} /> : <Copy size={15} />}</button>}
-            <button type="button" aria-label={'Save ' + job.title + ' at ' + job.company} aria-pressed={saved.has(job.id)} onClick={() => toggleSaved(job)}>
+            {detail && <button type="button" title={copiedId === job.id ? 'Link copied' : 'Copy job link'} aria-label={'Copy link to ' + job.title} onClick={event => copy(job, event.currentTarget)}>{copiedId === job.id ? <Check size={15} /> : <Copy size={15} />}</button>}
+            <button type="button" className="save-job" title={saved.has(job.id) ? 'Remove from saved roles' : 'Save role'} aria-label={'Save ' + job.title + ' at ' + job.company} aria-pressed={saved.has(job.id)} onClick={event => toggleSaved(job, event.currentTarget)}>
               {saved.has(job.id) ? <BookmarkCheck size={17} /> : <Bookmark size={17} />}
             </button>
             <a href={job.url} target="_blank" rel="noopener noreferrer" aria-label={'Apply for ' + job.title + ' at ' + job.company}>Apply <ArrowUpRight size={14} /></a>
@@ -352,12 +380,15 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
       </table> : <div className="board-empty">
         <h3>{emptySaved ? 'No saved roles yet' : scope === 'Saved' ? 'No saved roles match your filters' : 'No matching roles'}</h3>
         <p>{emptySaved ? 'Use the bookmark beside a role to keep it here.' : 'Try another search or clear your filters.'}</p>
-        <button className="board-control" onClick={() => { resetFilters(); if (emptySaved || !hasFilters) setScope('All roles'); }}>{emptySaved || !hasFilters ? 'Browse all roles' : 'Clear filters'}</button>
+        <button ref={emptyAction} className="board-control" onClick={() => { resetFilters(); if (emptySaved || !hasFilters) setScope('All roles'); }}>{emptySaved || !hasFilters ? 'Browse all roles' : 'Clear filters'}</button>
       </div>}
       {pages > 1 && <nav className="board-pages" aria-label="Results pages">
         {mobile ? <>
           {firstPage > 0 && <button onClick={() => goToPage(firstPage - 1)}>Previous</button>}
-          {current < pages - 1 && <button onClick={() => setRange({ first: firstPage, last: current + 1 })}>Load more</button>}
+          {current < pages - 1 && <button onClick={() => {
+            firstNewRow.current = 'listing-' + matches[end].id;
+            setRange({ first: firstPage, last: current + 1 });
+          }}>Load more</button>}
         </> : <>
           <button disabled={!firstPage} onClick={() => goToPage(firstPage - 1)}>Previous</button>
           {Array.from({ length: Math.min(5, pages) }, (_, i) => Math.max(0, Math.min(current - 2, pages - 5)) + i).map(index =>
@@ -366,6 +397,10 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
         </>}
       </nav>}
       <p className="sr-only" role="status">{message}</p>
+      {notice && <div className="board-notice"><span role="status">{notice}</span><button type="button" aria-label="Dismiss notice" onClick={() => {
+        setNotice('');
+        (noticeTrigger.current?.isConnected ? noticeTrigger.current : input.current)?.focus();
+      }}><X size={16} /></button></div>}
     </div>
   );
 }

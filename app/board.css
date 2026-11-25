@@ -48,7 +48,7 @@
 .board-filters select { min-height: 38px; border: 1px solid var(--board-line); border-radius: 6px; background: hsl(var(--card)); padding-inline: 8px; }
 .results-summary { min-height: 44px; }
 .results-summary h2 { font-size: 13px; font-weight: 500; scroll-margin-top: 12px; }
-.results-summary button { color: var(--board-accent); text-decoration: underline; }
+.results-summary button { min-height: 36px; padding-inline: 3px; color: var(--board-accent); text-decoration: underline; }
 .listings-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 14px; }
 .listings-table th { text-align: left; border-block: 1px solid var(--board-line); font-size: 12px; color: var(--board-muted); }
 .listings-table th button { display: inline-flex; gap: 4px; align-items: center; min-height: 38px; }
@@ -85,6 +85,8 @@
 .action-cell a { border-radius: 18px; color: hsl(var(--foreground)); background: hsl(var(--muted)/.75); font-size: 13px; font-weight: 500; padding-inline: 10px; }
 .board-pages { justify-content: center; gap: 4px; padding-top: 20px; }
 .board-pages button:disabled { opacity: .45; }
+.board-notice { position: fixed; z-index: 2; inset-inline: 12px; bottom: max(12px, env(safe-area-inset-bottom)); margin-inline: auto; width: fit-content; max-width: calc(100% - 24px); display: flex; align-items: center; gap: 8px; padding-inline: 12px 2px; background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); border-radius: 10px; font-size: 14px; }
+.board-notice button { min-width: 44px; min-height: 44px; display: grid; place-items: center; }
 .board-empty { text-align: center; padding: 40px 16px; border: 1px solid var(--board-line); border-radius: 8px; }
 .board-empty h3,.board-empty h2 { font-size: 18px; font-weight: 500; }
 .board-empty p,.board-loading { color: var(--board-muted); }
@@ -93,10 +95,13 @@
 @media (hover:hover) and (pointer:fine) {
   .role-title:hover,.company-cell a:hover,.action-cell a:hover { text-decoration: underline; text-underline-offset: 3px; }
   .listings-table tbody tr:hover { background: hsl(var(--muted)/.32); }
+  .board-scopes button:not([aria-pressed=true]):hover,.board-pages button:not(:disabled):not([aria-current=page]):hover,
+  .board-search button:hover,.theme-toggle:hover,.board-empty button:hover { background: hsl(var(--muted)); }
+  .listings-table th button:hover,.results-summary button:hover { color: var(--board-accent); }
   .board-control:hover,.action-cell button:hover { border-color: var(--board-muted); background: hsl(var(--muted)); }
 }
 /* Pair title and company on tablets so long job names and locations both have room. */
-@media (min-width:800px) and (max-width:1079px) {
+@media (min-width:680px) and (max-width:1079px) {
   .listings-table,.listings-table tbody { display: block; }
   .listings-table thead { display: none; }
   .listings-table tbody tr {
@@ -116,46 +121,56 @@
   .date-cell span { display: inline; }
   .action-cell { grid-area: actions; }
 }
-@media (max-width:799px) {
-  .board-width { width: min(100% - 32px, 680px); }
-  .directory-intro { margin-bottom: 18px; }
+@media (max-width:679px) {
+  .board-width { width: calc(100% - clamp(32px, 8vw, 48px)); }
+  .board-header { padding-block: 6px; }
   .board-main { padding-block: 16px 24px; }
-  .board-summary { flex-wrap: wrap; row-gap: 3px; font-size: 12px; }
-  .results-nav { margin-block: 12px 3px; }
-  .results-summary { min-height: 28px; }
-  .board-toolbar { gap: 8px; }
-  .board-search { flex-basis: 100%; }
-  .board-scopes,.board-options { flex-wrap: wrap; }
-  .board-scopes button { padding-inline: 10px; }
-  .board-filters { align-items: stretch; }
-  .board-filters label { flex-wrap: wrap; }
+  .directory-intro { margin-bottom: 16px; }
+  .directory-intro p { line-height: 1.35; }
+  .board-summary { gap: 2px 10px; font-size: 12px; line-height: 1.5; }
+  .board-toolbar { display: grid; grid-template-columns: minmax(0,1fr); gap: 4px; }
+  .board-options { width: 100%; gap: 4px; }
+  .board-options .board-control { background: transparent; padding-inline: 8px; gap: 5px; }
+  .board-options label.board-control { padding-inline-start: 2px; margin-inline-end: auto; }
+  .board-options [aria-pressed=true],.board-options [aria-expanded=true] { background: var(--board-tint); }
+  .board-filters { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); align-items: end; gap: 6px 12px; padding: 10px 0; }
+  .board-filters[hidden] { display: none; }
+  .board-filters label:not(.board-control) { display: grid; gap: 4px; font-size: 12px; color: var(--board-muted); }
+  .board-filters select { width: 100%; min-width: 0; color: hsl(var(--foreground)); }
+  .board-filters .board-control { grid-column: 1 / -1; justify-self: start; border: 0; padding-inline-start: 2px; }
+  .results-nav { display: block; margin: 8px 0 0; }
+  .board-scopes { width: 100%; gap: 2px; border-bottom: 1px solid var(--board-line); }
+  .board-scopes button { min-width: 0; padding-inline: clamp(5px,2vw,12px); border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; color: var(--board-muted); gap: 4px; }
+  .board-scopes button[aria-pressed=true] { color: hsl(var(--foreground)); background: transparent; border-bottom-color: currentColor; }
+  .results-summary { min-height: 38px; }
+  .results-summary button { min-height: 44px; }
   .listings-table,.listings-table tbody { display: block; }
-  .listings-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); visibility: hidden; }
-  .listings-table tbody tr { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 5px 10px; border-top: 1px solid var(--board-line); padding: 15px 0 10px; }
-  .listings-table td { display: block; padding: 0; border: 0; }
-  .role-title { font-size: 16px; }
-  .role-cell { grid-area: 1 / 1 / 2 / 3; font-size: 16px; line-height: 1.35; }
-  .listings-table td { min-width: 0; }
-  .company-cell { grid-area: 2 / 1 / 3 / 2; align-self: center; font-size: 13px; }
+  .listings-table thead { display: none; }
+  .listings-table tbody tr { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 8px; border-top: 1px solid var(--board-line); padding-block: 12px 8px; }
+  .listings-table td { min-width: 0; display: block; padding: 0; border: 0; }
+  .role-cell { order: 1; flex: 0 0 100%; }
+  .role-title { display: inline-block; font-size: 16px; line-height: 1.4; }
+  .company-cell { order: 2; flex: 1 1 0; font-size: 13px; }
+  .company-cell a { gap: 6px; vertical-align: middle; }
   .company-cell a > span:first-child { width: 20px; height: 20px; }
   .company-cell img { width: 14px; height: 14px; }
-  .portal-cell { grid-area: 2 / 2 / 3 / 3; align-self: center; max-width: 140px; }
+  .portal-cell { order: 3; flex: 0 1 auto; max-width: 50%; }
   .listing-portals { justify-content: flex-end; }
   .portal-caption { display: inline; color: var(--board-muted); font-size: 12px; }
-  .location-cell { grid-area: 3 / 1 / 4 / 3; font-size: 13px; }
-  .date-cell { align-self: center; }
+  .location-cell { order: 4; flex: 0 0 100%; font-size: 13px; line-height: 1.5; }
+  .date-cell { order: 5; flex: 1 1 0; }
   .date-cell span { display: inline; }
-  .action-cell { justify-self: end; }
+  .action-cell { order: 6; margin-inline-start: auto; }
   .board-pages button { flex: 1; }
 }
-@media (max-width:360px) {
-  .board-options { gap: 4px; }
-  .board-options .board-control { padding-inline: 8px; gap: 4px; }
-}
-@media (pointer:coarse), (max-width:799px) {
+@media (pointer:coarse), (max-width:679px) {
   .board-scopes button,.board-control,.board-pages button,.board-filters select,.action-cell :is(a,button) { min-height: 44px; min-width: 44px; }
   .board-filters select,.board-search input { font-size: 16px; }
+  .results-summary button { min-height: 44px; }
   .board-search kbd { display: none; }
+}
+@media (prefers-reduced-motion:no-preference) {
+  .board-scopes button:active,.board-control:active,.board-pages button:enabled:active,.action-cell :is(a,button):active { transform: scale(.98); }
 }
 @media (prefers-reduced-motion:reduce) {
   .board-shell *, .board-shell *::before, .board-shell *::after { animation: none !important; transition: none !important; }
