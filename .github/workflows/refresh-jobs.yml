@@ -4,10 +4,13 @@ on:
   schedule:
     # Every 30 minutes, at :05 and :35 past the hour (UTC)
     - cron: '5,35 * * * *'
+    # Renew the schedule before GitHub's 60-day inactivity cutoff.
+    - cron: '17 3 1,15 * *'
   workflow_dispatch: # Allow manual trigger from GitHub Actions UI
 
 jobs:
   refresh:
+    if: github.event.schedule != '17 3 1,15 * *'
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -28,3 +31,14 @@ jobs:
         run: npx tsx scripts/fetch-and-cache.ts
         env:
           BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+
+  renew-schedule:
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '17 3 1,15 * *'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Renew the job listings schedule
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api --method PUT "repos/$GITHUB_REPOSITORY/actions/workflows/refresh-jobs.yml/enable"
