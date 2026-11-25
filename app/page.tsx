@@ -7,6 +7,7 @@ import JobTable from '@/components/JobTable';
 import { classifyDate } from '@/lib/jobDates';
 import { isDesignRole } from '@/lib/filterJobs';
 import ThemeToggle from '@/components/ThemeToggle';
+import { Layers2 } from 'lucide-react';
 
 export const revalidate = 0;
 export const maxDuration = 60;
@@ -69,12 +70,9 @@ async function JobsContent() {
 export default function Home() {
   return (
     <div className="board-shell">
-      <header className="board-header surface-grid">
+      <header className="board-header">
         <div className="board-width board-masthead">
-          <div>
-            <h1>Design Jobs</h1>
-            <p>Product, UX, brand, motion and design engineering roles.</p>
-          </div>
+          <h1><span className="board-mark" aria-hidden="true"><Layers2 size={19} strokeWidth={1.8} /></span>Design Jobs</h1>
           <ThemeToggle />
         </div>
       </header>

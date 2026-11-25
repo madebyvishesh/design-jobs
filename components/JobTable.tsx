@@ -232,23 +232,19 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
 
   return (
     <div className="job-board">
-      <div className="board-search">
-        <Search size={20} aria-hidden="true" />
-        <input ref={input} type="search" aria-label="Search jobs by role, company or location" placeholder="Search jobs"
-          value={search} onChange={e => { setSearch(e.target.value); setPage(0); }} />
-        {search ? <button type="button" aria-label="Clear search" onClick={() => { setSearch(''); setPage(0); input.current?.focus(); }}><X size={17} /></button> : <kbd aria-hidden="true">/</kbd>}
-      </div>
-      <div className="board-summary">
-        <span>{jobs.length} roles · {new Set(jobs.map(job => job.company)).size} companies · {jobs.filter(job => job.isRemote).length} remote</span>
-        <span>Last checked <time dateTime={new Date(fetchedAt).toISOString()}>{checked} IST</time></span>
+      <div className="directory-intro">
+        <p><strong>{jobs.length} open roles.</strong> Product, UX, brand, motion and design engineering.</p>
+        <div className="board-summary">
+          <span>{new Set(jobs.map(job => job.company)).size} companies · {jobs.filter(job => job.isRemote).length} remote roles</span>
+          <span>Last checked <time dateTime={new Date(fetchedAt).toISOString()}>{checked} IST</time></span>
+        </div>
       </div>
       <div className="board-toolbar">
-        <div className="board-scopes" role="group" aria-label="Browse roles">
-          {scopes.map(item => <button type="button" key={item} aria-pressed={scope === item}
-            onClick={() => { setScope(item); setPage(0); }}>
-            {item === 'Saved' && <Bookmark size={14} aria-hidden="true" />}
-            {item}{item === 'Saved' && <span> ({savedCount})</span>}
-          </button>)}
+        <div className="board-search">
+          <Search size={20} aria-hidden="true" />
+          <input ref={input} type="search" aria-label="Search jobs by role, company or location" placeholder="Search jobs"
+            value={search} onChange={e => { setSearch(e.target.value); setPage(0); }} />
+          {search ? <button type="button" aria-label="Clear search" onClick={() => { setSearch(''); setPage(0); input.current?.focus(); }}><X size={17} /></button> : <kbd aria-hidden="true">/</kbd>}
         </div>
         <div className="board-options">
           <label className="board-control"><input type="checkbox" checked={remote} onChange={e => { setRemote(e.target.checked); setPage(0); }} />Remote only</label>
@@ -270,11 +266,20 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
         </select></label>
         <label className="board-control"><input type="checkbox" checked={week} onChange={e => { setWeek(e.target.checked); setPage(0); }} />Posted this week</label>
       </div>
-      <div className="results-summary">
-        <h2 tabIndex={-1} ref={results} aria-live="polite" aria-atomic="true">
-          {matches.length ? (start + 1) + '–' + end + ' of ' + matches.length + ' roles' : '0 matching roles'}
-        </h2>
-        {hasFilters && <button type="button" onClick={resetFilters}>Clear filters</button>}
+      <div className="results-nav">
+        <div className="board-scopes" role="group" aria-label="Browse roles">
+          {scopes.map(item => <button type="button" key={item} aria-pressed={scope === item}
+            onClick={() => { setScope(item); setPage(0); }}>
+            {item === 'Saved' && <Bookmark size={14} aria-hidden="true" />}
+            {item}{item === 'Saved' && <span> ({savedCount})</span>}
+          </button>)}
+        </div>
+        <div className="results-summary">
+          <h2 tabIndex={-1} ref={results} aria-live="polite" aria-atomic="true">
+            {matches.length ? (start + 1) + '–' + end + ' of ' + matches.length + ' roles' : '0 matching roles'}
+          </h2>
+          {hasFilters && <button type="button" onClick={resetFilters}>Clear filters</button>}
+        </div>
       </div>
       {visible.length ? <table className="listings-table" aria-label="Design job listings">
         <thead><tr>{(Object.keys(columns) as SortKey[]).map(key => <th key={key} scope="col" aria-sort={key === sortKey ? (ascending ? 'ascending' : 'descending') : undefined}>
