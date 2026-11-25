@@ -15,3 +15,5 @@ A public board for finding and saving design vacancies. Next.js and React serve 
 
 - Listings carry date provenance through deduplication. The board handles older snapshots conservatively. Added facility-role filtering for broad design titles.
 - Implemented a single search and bookmark store, responsive job rows, accessible filters, accurate dates and an in-context fetch timestamp. Snapshot browser checks covered mobile and desktop search, bookmark reload, keyboard focus, date filters and pagination. On the same 591-role input, desktop markup decreased from 960,945 decoded bytes to 386,602 bytes.
+- 26 Nov 2026 · Restored color-coded job portal names in the default results. Desktop rows have a dedicated Job portal column; mobile cards show the source beside the company. All contributing portals are shown for merged listings.
+- Remote roles show a high-contrast green globe badge before their location in both layouts. The location still shows any geographic restrictions supplied by the employer.

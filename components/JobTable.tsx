@@ -1,15 +1,28 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpRight, Bookmark, BookmarkCheck, Check, Copy, List, Rows3, Search, SlidersHorizontal, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpRight, Bookmark, BookmarkCheck, Check, Copy, Globe2, List, Rows3, Search, SlidersHorizontal, X } from 'lucide-react';
 import type { Job, AtsSource } from '@/types/job';
 
 const PAGE_SIZE = 50;
 const SAVED_KEY = 'design-jobs:saved';
 const MODE_KEY = 'design-jobs:view-mode';
 const sources: Record<AtsSource, string> = {
-  yc: 'YC', ashby: 'Ashby', greenhouse: 'Greenhouse', lever: 'Lever', remotive: 'Remotive', workday: 'Workday',
+  yc: 'Y Combinator', ashby: 'Ashby', greenhouse: 'Greenhouse', lever: 'Lever', remotive: 'Remotive', workday: 'Workday',
 };
+const portalColors: Record<AtsSource, string> = {
+  yc: 'bg-orange-100 text-orange-900 dark:bg-orange-400/15 dark:text-orange-200',
+  ashby: 'bg-violet-100 text-violet-900 dark:bg-violet-400/15 dark:text-violet-200',
+  greenhouse: 'bg-emerald-100 text-emerald-900 dark:bg-emerald-400/15 dark:text-emerald-200',
+  lever: 'bg-sky-100 text-sky-900 dark:bg-sky-400/15 dark:text-sky-200',
+  remotive: 'bg-rose-100 text-rose-900 dark:bg-rose-400/15 dark:text-rose-200',
+  workday: 'bg-amber-100 text-amber-900 dark:bg-amber-400/15 dark:text-amber-200',
+};
+
+function listingSources(job: Job): AtsSource[] {
+  return job.sources?.length ? job.sources : [job.ats];
+}
+
 const columns = { title: 'Role', company: 'Company', location: 'Location', postedAt: 'Date' };
 type SortKey = keyof typeof columns;
 type Scope = 'All roles' | 'AI & frontier' | 'Saved';
@@ -173,7 +186,7 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
       if (scope === 'Saved' && !saved.has(job.id)) return false;
       if (scope === 'AI & frontier' && !job.isAI) return false;
       if (remote && !job.isRemote) return false;
-      if (source !== 'all' && !job.sources.some(value => value === source)) return false;
+      if (source !== 'all' && !listingSources(job).some(value => value === source)) return false;
       if (week) {
         const age = fetchedAt - Date.parse(job.postedAt);
         if (job.dateKind !== 'posted' || !(age >= 0 && age <= 7 * 86400000)) return false;
@@ -266,17 +279,35 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
       {visible.length ? <table className="listings-table" aria-label="Design job listings">
         <thead><tr>{(Object.keys(columns) as SortKey[]).map(key => <th key={key} scope="col" aria-sort={key === sortKey ? (ascending ? 'ascending' : 'descending') : undefined}>
           <button type="button" onClick={() => sortBy(key)}>{columns[key]}{key === sortKey && (ascending ? <ArrowUp size={13} /> : <ArrowDown size={13} />)}</button>
-        </th>)}<th scope="col"><span className="sr-only">Actions</span></th></tr></thead>
+        </th>)}
+          <th scope="col" className="portal-heading">Job portal</th>
+          <th scope="col"><span className="sr-only">Actions</span></th>
+        </tr></thead>
         <tbody>{visible.map(job => <tr key={job.id}>
           <td className="role-cell">
             <a href={job.url} target="_blank" rel="noopener noreferrer" className="role-title"><HighlightText text={job.title} query={query} /></a>
-            {detail && <div className="role-detail">{[job.department, job.sources.map(id => sources[id]).join(' · ')].filter(Boolean).join(' · ')}</div>}
+            {detail && job.department && <div className="role-detail">{job.department}</div>}
           </td>
           <td className="company-cell"><a href={job.companyDomain ? 'https://' + job.companyDomain : job.url} target="_blank" rel="noopener noreferrer">
             <CompanyAvatar job={job} size="sm" /><span><HighlightText text={job.company} query={query} />{detail && job.batch && <small>{job.batch}</small>}</span>
           </a></td>
-          <td className="location-cell"><HighlightText text={job.location || 'Location unavailable'} query={query} />{job.isRemote && <span className="remote-label">Remote</span>}</td>
+          <td className="location-cell">
+            <div className="listing-location">
+              {job.isRemote && <span className="remote-label"><Globe2 size={13} aria-hidden="true" />Remote</span>}
+              {(!job.isRemote || (job.location && job.location.trim().toLowerCase() !== 'remote')) && (
+                <span><HighlightText text={job.location || 'Location unavailable'} query={query} /></span>
+              )}
+            </div>
+          </td>
           <td className="date-cell">{job.postedAt ? <><span>{job.dateKind === 'updated' ? 'Updated' : job.dateKind === 'created' ? 'Created' : 'Posted'}</span> <time dateTime={job.postedAt}>{dateFormat.format(new Date(job.postedAt))}</time></> : 'Date unavailable'}</td>
+          <td className="portal-cell">
+            <div className="listing-portals">
+              <span className="portal-caption">Via</span>
+              {listingSources(job).map(id => (
+                <span key={id} className={'portal-badge ' + portalColors[id]}>{sources[id]}</span>
+              ))}
+            </div>
+          </td>
           <td className="action-cell"><div>
             {detail && <button type="button" aria-label={'Copy link to ' + job.title} onClick={() => copy(job)}>{copiedId === job.id ? <Check size={15} /> : <Copy size={15} />}</button>}
             <button type="button" aria-label={'Save ' + job.title + ' at ' + job.company} aria-pressed={saved.has(job.id)} onClick={() => toggleSaved(job)}>

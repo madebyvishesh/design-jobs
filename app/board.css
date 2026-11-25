@@ -45,9 +45,10 @@
 .listings-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 14px; }
 .listings-table th { text-align: left; background: hsl(var(--muted)); font-size: 12px; color: var(--board-muted); }
 .listings-table th button { display: inline-flex; gap: 4px; align-items: center; min-height: 38px; }
-.listings-table th:first-child { width: 34%; border-radius: 6px 0 0 6px; }
-.listings-table th:nth-child(2) { width: 19%; }
+.listings-table th:first-child { width: 30%; border-radius: 6px 0 0 6px; }
+.listings-table th:nth-child(2) { width: 16%; }
 .listings-table th:nth-child(4) { width: 12%; }
+.listings-table th.portal-heading { width: 110px; }
 .listings-table th:last-child { width: 150px; border-radius: 0 6px 6px 0; }
 .listings-table th,.listings-table td { padding-inline: 10px; }
 .listings-table td { padding-block: 12px; border-bottom: 1px solid var(--board-line); overflow-wrap: anywhere; }
@@ -56,9 +57,19 @@
 .company-cell small,.role-detail { display: block; color: var(--board-muted); font-size: 12px; font-weight: 400; }
 .role-detail { margin-top: 4px; }
 .location-cell,.date-cell { color: var(--board-muted); }
-.remote-label { display: inline-block; border-radius: 4px; margin-left: 6px; padding: 1px 5px; font-size: 11px; color: var(--board-accent); background: var(--board-tint); }
+.listing-location { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 7px; }
+.remote-label {
+  display: inline-flex; align-items: center; gap: 4px; flex: none;
+  padding: 3px 7px; border-radius: 5px; border: 1px solid #b9d996;
+  background: #e5f5cb; color: #315713; font-size: 11px; line-height: 1.35;
+  font-weight: 600; letter-spacing: .035em; text-transform: uppercase;
+}
+.dark .remote-label { background: #253819; color: #c2eb99; border-color: #496a32; }
 .date-cell { font-size: 12px; font-variant-numeric: tabular-nums; }
 .date-cell span { display: block; }
+.listing-portals { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.portal-badge { display: inline-block; white-space: nowrap; border-radius: 5px; padding: 3px 7px; font-size: 12px; font-weight: 500; line-height: 1.35; }
+.portal-caption { display: none; }
 .action-cell > div { display: flex; align-items: center; justify-content: flex-end; gap: 2px; }
 .action-cell :is(button,a) { min-width: 30px; min-height: 34px; display: inline-flex; align-items: center; justify-content: center; gap: 3px; border-radius: 6px; }
 .action-cell button { color: var(--board-muted); }
@@ -91,9 +102,12 @@
   .listings-table tbody tr { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 5px 10px; border: 1px solid var(--board-line); border-radius: 10px; background: hsl(var(--card)); padding: 12px; margin-bottom: 8px; }
   .listings-table td { display: block; padding: 0; border: 0; }
   .role-cell { grid-area: 1 / 1 / 2 / 3; font-size: 16px; line-height: 1.35; }
-  .company-cell { grid-area: 2 / 1 / 3 / 3; font-size: 13px; }
+  .company-cell { grid-area: 2 / 1 / 3 / 2; align-self: center; font-size: 13px; }
   .company-cell a > span:first-child { width: 20px; height: 20px; }
   .company-cell img { width: 14px; height: 14px; }
+  .portal-cell { grid-area: 2 / 2 / 3 / 3; align-self: center; max-width: 140px; }
+  .listing-portals { justify-content: flex-end; }
+  .portal-caption { display: inline; color: var(--board-muted); font-size: 12px; }
   .location-cell { grid-area: 3 / 1 / 4 / 3; font-size: 13px; }
   .date-cell { align-self: center; }
   .date-cell span { display: inline; }
