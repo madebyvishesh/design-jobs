@@ -24,3 +24,4 @@ A public board for finding and saving design vacancies. Next.js and React serve 
 - Replaced the large role total and portal chart after screenshot feedback. A sentence describes the roles, totals sit beside the results, and the portal selector remains under Filters.
 - Restyled the existing table and mobile listings with neutral ink, a pale results surface and rounded controls. Portal colors and the green Remote indicator still identify each listing.
 - Applied the responsive content plan with three-line phone cards, independent tablet metadata stacks and fixed action space, compact desktop dates, and a collapsible overview on smaller screens.
+- Simplified browsing to search and Filters, with scopes and Remote on one line. Moved feed information and Details into Filters, kept custom sorting visible and reduced repeated badge and button fills. Portal names and the desktop portal column are visible in Details.

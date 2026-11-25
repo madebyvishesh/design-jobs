@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpRight, Bookmark, BookmarkCheck, Check, Copy, Globe2, List, Rows3, Search, SlidersHorizontal, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpRight, Bookmark, BookmarkCheck, Check, Copy, Globe2, Search, SlidersHorizontal, X } from 'lucide-react';
 import type { Job, AtsSource } from '@/types/job';
 
 const PAGE_SIZE = 50;
@@ -10,15 +10,6 @@ const MODE_KEY = 'design-jobs:view-mode';
 const sources: Record<AtsSource, string> = {
   yc: 'Y Combinator', ashby: 'Ashby', greenhouse: 'Greenhouse', lever: 'Lever', remotive: 'Remotive', workday: 'Workday',
 };
-const portalColors: Record<AtsSource, string> = {
-  yc: 'bg-orange-100 text-orange-900 dark:bg-orange-400/15 dark:text-orange-200',
-  ashby: 'bg-violet-100 text-violet-900 dark:bg-violet-400/15 dark:text-violet-200',
-  greenhouse: 'bg-emerald-100 text-emerald-900 dark:bg-emerald-400/15 dark:text-emerald-200',
-  lever: 'bg-sky-100 text-sky-900 dark:bg-sky-400/15 dark:text-sky-200',
-  remotive: 'bg-rose-100 text-rose-900 dark:bg-rose-400/15 dark:text-rose-200',
-  workday: 'bg-amber-100 text-amber-900 dark:bg-amber-400/15 dark:text-amber-200',
-};
-
 function listingSources(job: Job): AtsSource[] {
   return job.sources?.length ? job.sources : [job.ats];
 }
@@ -301,14 +292,6 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
   return (
     <div className="job-board">
       <div className="board-width browse-tools">
-        <div className="directory-intro">
-          <p><strong>Product, UX, brand and motion roles</strong> <span className="text-unit">at {overview.companies} companies.</span></p>
-          <div className="board-summary">
-            <span>{overview.remote} remote roles</span>
-            <span>Last checked {checkedTime}</span>
-          </div>
-        </div>
-        <p className="tablet-timestamp">Last checked {checkedTime}</p>
         <div className="board-toolbar">
           <div className="board-search">
             <Search size={20} aria-hidden="true" />
@@ -317,12 +300,8 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
             {search ? <button type="button" aria-label="Clear search" onClick={() => { setSearch(''); setPage(0); input.current?.focus(); }}><X size={17} /></button> : <kbd aria-hidden="true">/</kbd>}
           </div>
           <div className="board-options">
-            <label className="board-control"><input type="checkbox" checked={remote} onChange={e => { setRemote(e.target.checked); setPage(0); }} />Remote only</label>
             <button type="button" className="board-control" ref={filterTrigger} aria-expanded={filtersOpen} aria-controls="board-filters" onClick={() => setFiltersOpen(!filtersOpen)}>
               <SlidersHorizontal size={15} />Filters{(week || source !== 'all') && <Check size={14} />}
-            </button>
-            <button type="button" className="board-control desktop-details" title="Show job details" aria-pressed={detail} onClick={toggleDetail}>
-              {detail ? <List size={16} /> : <Rows3 size={16} />} Details
             </button>
           </div>
         </div>
@@ -339,19 +318,22 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
             {Object.keys(columns).flatMap(id => ['+', '-'].map(dir =>
               <option key={id + dir} value={id + dir}>{sortLabel(id as SortKey, dir === '+')}</option>))}
           </select></label>
-          <label className="board-control compact-details"><input type="checkbox" checked={detail} onChange={toggleDetail} />Show job details</label>
+          <label className="board-control"><input type="checkbox" checked={detail} onChange={toggleDetail} />Show job details</label>
           <label className="board-control"><input type="checkbox" checked={week} onChange={e => { setWeek(e.target.checked); setPage(0); }} />Posted in the last 7 days</label>
+          <p className="feed-info">{overview.companies} companies · {overview.remote} remote roles <span>Last checked {checkedTime}</span></p>
         </div>
       </div>
       <div className="directory-results">
         <div className="board-width">
           <div className="results-nav">
-            <div className="board-scopes" role="group" aria-label="Browse roles">
-              {scopes.map(item => <button type="button" key={item} aria-pressed={scope === item}
-                onClick={() => { setScope(item); setPage(0); }}>
-                {item === 'Saved' && <Bookmark size={14} aria-hidden="true" />}
-                {item}{item === 'Saved' && <span> ({savedCount})</span>}
-              </button>)}
+            <div className="browse-nav">
+              <div className="board-scopes" role="group" aria-label="Browse roles">
+                {scopes.map(item => <button type="button" key={item} aria-pressed={scope === item}
+                  onClick={() => { setScope(item); setPage(0); }}>
+                  {item}{item === 'Saved' && savedCount > 0 && <span> ({savedCount})</span>}
+                </button>)}
+              </div>
+              <label className="board-control remote-control"><input type="checkbox" checked={remote} onChange={e => { setRemote(e.target.checked); setPage(0); }} aria-label="Remote only" />Remote</label>
             </div>
             <div className="results-summary">
               {source !== 'all' && <span className="active-portal">{sources[source as AtsSource]}</span>}
@@ -359,22 +341,17 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
               <h2 tabIndex={-1} ref={results} aria-live="polite" aria-atomic="true">
                 {matches.length ? (start + 1) + '–' + end + ' of ' + matches.length + ' roles' : '0 matching roles'}
               </h2>
-              <span className={customSort ? 'sort-summary' : 'sort-summary default-sort'}>{sortLabel(sortKey, ascending)}</span>
-              <details className="compact-overview">
-                <summary>About these listings</summary>
-                <p>{overview.companies} companies · {overview.remote} remote roles</p>
-                <p className="phone-timestamp">Last checked {checkedTime}</p>
-              </details>
-              {hasFilters && matches.length > 0 && <button type="button" onClick={resetFilters}>Clear filters</button>}
+              {customSort && <span className="sort-summary">{sortLabel(sortKey, ascending)}</span>}
+              {(query || week || source !== 'all') && matches.length > 0 && <button type="button" onClick={resetFilters}>Clear filters</button>}
             </div>
           </div>
-          {visible.length ? <div className="listings-table" role="table" aria-label="Design job listings">
+          {visible.length ? <div className="listings-table" data-details={detail} role="table" aria-label="Design job listings">
             <div className="listing-head" role="row">
               {(Object.keys(columns) as SortKey[]).map(key => <div key={key} role="columnheader" aria-sort={key === sortKey ? (ascending ? 'ascending' : 'descending') : undefined}>
                 <button type="button" onClick={() => sortBy(key)}>{columns[key]}{key === sortKey && (ascending ? <ArrowUp size={13} /> : <ArrowDown size={13} />)}</button>
                 <span className="compact-column-name">{columns[key]}</span>
               </div>)}
-              <div role="columnheader">Job portal</div>
+              {detail && <div role="columnheader">Job portal</div>}
               <div role="columnheader"><span className="sr-only">Actions</span></div>
             </div>
             <div role="rowgroup">{visible.map(job => <div className="listing-row" role="row" key={job.id}>
@@ -393,14 +370,14 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
               <div className="listing-foot" role="presentation">
                 <div className="listing-attribution" role="presentation">
                   <div role="cell" className="date-cell"><ListingDate job={job} currentYear={snapshotYear} /></div>
-                  <div role="cell" className="portal-cell">
+                  {detail && <div role="cell" className="portal-cell">
                     <div className="listing-portals" role="group" aria-label="Job portals">
                       <span className="portal-caption">Via</span>
                       {listingSources(job).map(id => (
-                        <span key={id} data-portal={id} className={'portal-badge ' + portalColors[id]}>{sources[id]}</span>
+                        <span key={id} data-portal={id} className="portal-badge">{sources[id]}</span>
                       ))}
                     </div>
-                  </div>
+                  </div>}
                 </div>
                 <div role="cell" className="action-cell"><div>
                   {detail && <button type="button" title={copiedId === job.id ? 'Link copied' : 'Copy job link'} aria-label={'Copy link to ' + job.title} onClick={event => copy(job, event.currentTarget)}>{copiedId === job.id ? <Check size={15} /> : <Copy size={15} />}</button>}
