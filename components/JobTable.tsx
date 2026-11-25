@@ -23,10 +23,25 @@ function listingSources(job: Job): AtsSource[] {
   return job.sources?.length ? job.sources : [job.ats];
 }
 
-const columns = { title: 'Role', company: 'Company', location: 'Location', postedAt: 'Date' };
+function JobLocation({ job, query }: { job: Job; query: string }) {
+  const raw = job.location.trim();
+  // Preserve mixed arrangements such as “Remote or in-office in San Francisco”.
+  const location = job.isRemote
+    ? raw.replace(/^[Rr]emote(?: [Ll]ocation)?(?:\s*[-–—,:|]\s*|\s+(?=[A-Z(])|$)/, '')
+        .replace(/^\(([^()]+)\)$/, '$1').trim()
+    : raw;
+  return (
+    <div className="listing-location">
+      {job.isRemote && <span className="remote-label"><Globe2 size={13} aria-hidden="true" />Remote</span>}
+      {location ? <span><HighlightText text={location} query={query} /></span> : !job.isRemote && 'Location unavailable'}
+    </div>
+  );
+}
+
+const columns = { title: 'Role', company: 'Company', location: 'Location', postedAt: 'Listing date' };
 type SortKey = keyof typeof columns;
-type Scope = 'All roles' | 'AI & frontier' | 'Saved';
-const scopes: Scope[] = ['All roles', 'AI & frontier', 'Saved'];
+type Scope = 'All roles' | 'AI companies' | 'Saved';
+const scopes: Scope[] = ['All roles', 'AI companies', 'Saved'];
 const mobileQuery = '(max-width: 799px)';
 function subscribeLayout(listener: () => void) {
   const query = window.matchMedia(mobileQuery);
@@ -55,7 +70,7 @@ function HighlightText({ text, query }: { text: string; query: string }) {
   while (index !== -1) {
     if (index > cursor) parts.push(value.slice(cursor, index));
     parts.push(
-      <mark key={`${index}-${target}`} className="radius-chip bg-[hsl(var(--accent-lime)/0.28)] px-0.5 text-inherit">
+      <mark key={`${index}-${target}`} className="radius-chip bg-[hsl(var(--accent-lime)/0.28)] text-inherit">
         {value.slice(index, index + target.length)}
       </mark>
     );
@@ -96,6 +111,23 @@ function CompanyAvatar({ job, size = 'md' }: { job: Job; size?: 'sm' | 'md' }) {
 }
 
 const dateFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+const shortDateFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+
+function ListingDate({ job, currentYear }: { job: Job; currentYear: number }) {
+  if (!job.postedAt) return <>Date unavailable</>;
+  const date = new Date(job.postedAt);
+  const full = dateFormat.format(date);
+  const label = job.dateKind === 'updated' ? 'Updated' : job.dateKind === 'created' ? 'Created' : 'Posted';
+  return (
+    <>
+      <span>{label}</span>{' '}
+      <time dateTime={job.postedAt} title={full} aria-label={full}>
+        {date.getUTCFullYear() === currentYear ? shortDateFormat.format(date) : full}
+      </time>
+    </>
+  );
+}
+
 
 interface Props {
   jobs: Job[];
@@ -184,7 +216,7 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
   const matches = useMemo(() => {
     const filtered = jobs.filter(job => {
       if (scope === 'Saved' && !saved.has(job.id)) return false;
-      if (scope === 'AI & frontier' && !job.isAI) return false;
+      if (scope === 'AI companies' && !job.isAI) return false;
       if (remote && !job.isRemote) return false;
       if (source !== 'all' && !listingSources(job).some(value => value === source)) return false;
       if (week) {
@@ -208,6 +240,7 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
   const end = Math.min((current + 1) * PAGE_SIZE, matches.length);
   const visible = matches.slice(start, end);
   const hasFilters = Boolean(search || remote || week || source !== 'all');
+  const snapshotYear = new Date(fetchedAt).getUTCFullYear();
   const emptySaved = scope === 'Saved' && savedCount === 0;
 
   function goToPage(next: number) {
@@ -233,16 +266,16 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
   return (
     <div className="job-board">
       <div className="directory-intro">
-        <p><strong>{jobs.length} open roles.</strong> Product, UX, brand, motion and design engineering.</p>
+        <p><strong>{jobs.length} design jobs</strong> <span className="text-unit">across {new Set(jobs.map(job => job.company)).size} companies.</span></p>
         <div className="board-summary">
-          <span>{new Set(jobs.map(job => job.company)).size} companies · {jobs.filter(job => job.isRemote).length} remote roles</span>
+          <span>{jobs.filter(job => job.isRemote).length} remote roles</span>
           <span>Last checked <time dateTime={new Date(fetchedAt).toISOString()}>{checked} IST</time></span>
         </div>
       </div>
       <div className="board-toolbar">
         <div className="board-search">
           <Search size={20} aria-hidden="true" />
-          <input ref={input} type="search" aria-label="Search jobs by role, company or location" placeholder="Search jobs"
+          <input ref={input} type="search" aria-label="Search jobs by role, company or location" placeholder="Role, company or location"
             value={search} onChange={e => { setSearch(e.target.value); setPage(0); }} />
           {search ? <button type="button" aria-label="Clear search" onClick={() => { setSearch(''); setPage(0); input.current?.focus(); }}><X size={17} /></button> : <kbd aria-hidden="true">/</kbd>}
         </div>
@@ -252,19 +285,19 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
             <SlidersHorizontal size={15} />Filters{(week || source !== 'all') && <Check size={14} />}
           </button>
           <button type="button" className="board-control" aria-label="Detailed view" title="Detailed view" aria-pressed={detail} onClick={toggleDetail}>
-            {detail ? <List size={17} /> : <Rows3 size={17} />}
+            {detail ? <List size={16} /> : <Rows3 size={16} />} Details
           </button>
         </div>
       </div>
       <div id="board-filters" className="board-filters" hidden={!filtersOpen}>
-        <label>Source<select value={source} onChange={e => { setSource(e.target.value); setPage(0); }}>
-          <option value="all">All sources</option>{Object.entries(sources).map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+        <label>Job portal<select value={source} onChange={e => { setSource(e.target.value); setPage(0); }}>
+          <option value="all">All portals</option>{Object.entries(sources).map(([id, name]) => <option key={id} value={id}>{name}</option>)}
         </select></label>
         <label>Sort by<select value={sortKey + (ascending ? '+' : '-')} onChange={e => sortBy(e.target.value.slice(0, -1) as SortKey, e.target.value.endsWith('+'))}>
           {Object.entries(columns).flatMap(([id, name]) => ['+', '-'].map(dir =>
             <option key={id + dir} value={id + dir}>{id === 'postedAt' ? (dir === '+' ? 'Oldest first' : 'Newest first') : name + (dir === '+' ? ' A–Z' : ' Z–A')}</option>))}
         </select></label>
-        <label className="board-control"><input type="checkbox" checked={week} onChange={e => { setWeek(e.target.checked); setPage(0); }} />Posted this week</label>
+        <label className="board-control"><input type="checkbox" checked={week} onChange={e => { setWeek(e.target.checked); setPage(0); }} />Posted in the last 7 days</label>
       </div>
       <div className="results-nav">
         <div className="board-scopes" role="group" aria-label="Browse roles">
@@ -297,14 +330,9 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
             <CompanyAvatar job={job} size="sm" /><span><HighlightText text={job.company} query={query} />{detail && job.batch && <small>{job.batch}</small>}</span>
           </a></td>
           <td className="location-cell">
-            <div className="listing-location">
-              {job.isRemote && <span className="remote-label"><Globe2 size={13} aria-hidden="true" />Remote</span>}
-              {(!job.isRemote || (job.location && job.location.trim().toLowerCase() !== 'remote')) && (
-                <span><HighlightText text={job.location || 'Location unavailable'} query={query} /></span>
-              )}
-            </div>
+            <JobLocation job={job} query={query} />
           </td>
-          <td className="date-cell">{job.postedAt ? <><span>{job.dateKind === 'updated' ? 'Updated' : job.dateKind === 'created' ? 'Created' : 'Posted'}</span> <time dateTime={job.postedAt}>{dateFormat.format(new Date(job.postedAt))}</time></> : 'Date unavailable'}</td>
+          <td className="date-cell"><ListingDate job={job} currentYear={snapshotYear} /></td>
           <td className="portal-cell">
             <div className="listing-portals">
               <span className="portal-caption">Via</span>

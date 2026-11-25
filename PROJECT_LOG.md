@@ -18,3 +18,4 @@ A public board for finding and saving design vacancies. Next.js and React serve 
 - 26 Nov 2026 · Restored color-coded job portal names in the default results. Desktop rows have a dedicated Job portal column; mobile cards show the source beside the company. All contributing portals are shown for merged listings.
 - Remote roles show a high-contrast green globe badge before their location in both layouts. The location still shows any geographic restrictions supplied by the employer.
 - Simplified the masthead, grouped search with its filters and gave the results a quieter, divided-list layout. Portal names and remote status stay visible in both themes.
+- Reworked tablet rows to pair job title and employer, shortened the introduction, labeled the details and portal controls, and kept dates and location qualifiers together.

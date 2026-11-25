@@ -15,7 +15,8 @@
 .board-masthead .theme-toggle { width: 44px; height: 44px; border: 0; border-radius: 50%; box-shadow: none; background: hsl(var(--muted)/.65); }
 .board-main { padding-block: clamp(28px, 4vw, 54px) 32px; }
 .directory-intro { margin-bottom: 24px; }
-.directory-intro p { max-width: 640px; font-size: clamp(20px, 2vw, 29px); line-height: 1.29; font-weight: 400; letter-spacing: -.04em; color: var(--board-muted); text-wrap: pretty; }
+.directory-intro p { max-width: 42ch; font-size: clamp(18px, 1.5vw, 21px); line-height: 1.45; font-weight: 400; letter-spacing: -.022em; color: var(--board-muted); text-wrap: pretty; }
+.text-unit,.directory-intro strong,.board-summary time,.date-cell time { white-space: nowrap; }
 .directory-intro strong { color: hsl(var(--foreground)); font-weight: 500; }
 .board-shell :is(a,button,input,select,h2):focus-visible { outline: 2px solid var(--board-accent); outline-offset: 2px; }
 .board-search { display: flex; align-items: center; gap: 12px; height: 46px; flex: 1 1 240px; min-width: 0; padding-inline: 17px; border: 1px solid transparent; border-radius: 24px; background: hsl(var(--muted)/.75); color: var(--board-muted); }
@@ -27,7 +28,7 @@
 .board-search button { display: grid; place-items: center; min-width: 44px; min-height: 44px; }
 .board-search kbd { font: 13px monospace; border: 1px solid var(--board-line); padding: 1px 7px; border-radius: 4px; }
 .board-summary,.results-summary { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 16px; align-items: center; font-size: 13px; color: var(--board-muted); font-variant-numeric: tabular-nums; }
-.board-summary { justify-content: flex-start; margin-top: 12px; }
+.board-summary { justify-content: flex-start; margin-top: 6px; gap: 3px 12px; }
 .board-summary time { color: hsl(var(--foreground)); }
 .board-toolbar,.board-options,.board-scopes,.board-filters,.board-pages,.board-control { display: flex; align-items: center; }
 .board-toolbar { gap: 10px; flex-wrap: wrap; }
@@ -36,6 +37,7 @@
 .board-options { gap: 7px; }
 .board-scopes button,.board-control,.board-pages button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 38px; padding: 0 12px; border: 1px solid var(--board-line); border-radius: 22px; background: hsl(var(--card)); font-size: 13px; font-weight: 500; }
 .board-scopes button { border-color: transparent; }
+.board-scopes button,.board-control,.board-pages button { white-space: nowrap; }
 .board-options .board-control { min-height: 44px; border-color: transparent; background: hsl(var(--muted)/.75); }
 .board-scopes button[aria-pressed=true],.board-pages [aria-current=page] { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
 .board-options [aria-pressed=true],.board-options [aria-expanded=true],.action-cell [aria-pressed=true] { color: var(--board-accent); background: var(--board-tint); }
@@ -50,24 +52,26 @@
 .listings-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 14px; }
 .listings-table th { text-align: left; border-block: 1px solid var(--board-line); font-size: 12px; color: var(--board-muted); }
 .listings-table th button { display: inline-flex; gap: 4px; align-items: center; min-height: 38px; }
-.listings-table th:first-child { width: 30%; border-radius: 6px 0 0 6px; }
+.listings-table th:first-child { width: 32%; border-radius: 6px 0 0 6px; }
 .listings-table th:nth-child(2) { width: 16%; }
-.listings-table th:nth-child(4) { width: 12%; }
+.listings-table th:nth-child(4) { width: 11%; }
 .listings-table th.portal-heading { width: 110px; }
-.listings-table th:last-child { width: 150px; border-radius: 0 6px 6px 0; }
+.listings-table th:last-child { width: 146px; border-radius: 0 6px 6px 0; }
 .listings-table th,.listings-table td { padding-inline: 10px; }
-.listings-table td { padding-block: 15px; border-bottom: 1px solid var(--board-line); overflow-wrap: anywhere; }
-.role-title { font-size: 15px; line-height: 1.4; letter-spacing: -.015em; font-weight: 500; }
-.company-cell a { display: inline-flex; align-items: center; gap: 8px; }
+.listings-table td { padding-block: 15px; border-bottom: 1px solid var(--board-line); overflow-wrap: break-word; }
+.role-title { text-wrap: pretty; font-size: 15px; line-height: 1.4; letter-spacing: -.015em; font-weight: 500; }
+.company-cell a { max-width: 100%; display: inline-flex; align-items: center; gap: 8px; }
+.company-cell a > span:last-child { min-width: 0; text-wrap: pretty; }
 .company-cell small,.role-detail { display: block; color: var(--board-muted); font-size: 12px; font-weight: 400; }
 .role-detail { margin-top: 4px; }
 .location-cell,.date-cell { color: var(--board-muted); }
+.listing-location > span:last-child { min-width: 0; max-width: 100%; text-wrap: pretty; }
 .listing-location { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 7px; }
 .remote-label {
   display: inline-flex; align-items: center; gap: 4px; flex: none;
   padding: 3px 7px; border-radius: 5px; border: 1px solid #b9d996;
   background: #e5f5cb; color: #315713; font-size: 11px; line-height: 1.35;
-  font-weight: 600; letter-spacing: .035em; text-transform: uppercase;
+  font-weight: 600; letter-spacing: .005em;
 }
 .dark .remote-label { background: #253819; color: #c2eb99; border-color: #496a32; }
 .date-cell { font-size: 12px; font-variant-numeric: tabular-nums; }
@@ -91,6 +95,27 @@
   .listings-table tbody tr:hover { background: hsl(var(--muted)/.32); }
   .board-control:hover,.action-cell button:hover { border-color: var(--board-muted); background: hsl(var(--muted)); }
 }
+/* Pair title and company on tablets so long job names and locations both have room. */
+@media (min-width:800px) and (max-width:1079px) {
+  .listings-table,.listings-table tbody { display: block; }
+  .listings-table thead { display: none; }
+  .listings-table tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr) minmax(102px, .65fr) auto;
+    grid-template-areas: "role location portal actions" "company location date actions";
+    gap: 4px 18px; align-items: center; padding: 14px 0; border-top: 1px solid var(--board-line);
+  }
+  .listings-table td { min-width: 0; padding: 0; border: 0; }
+  .role-cell { grid-area: role; }
+  .company-cell { grid-area: company; font-size: 13px; }
+  .company-cell a > span:first-child { width: 19px; height: 19px; }
+  .company-cell img { width: 14px; height: 14px; }
+  .location-cell { grid-area: location; }
+  .portal-cell { grid-area: portal; }
+  .date-cell { grid-area: date; }
+  .date-cell span { display: inline; }
+  .action-cell { grid-area: actions; }
+}
 @media (max-width:799px) {
   .board-width { width: min(100% - 32px, 680px); }
   .directory-intro { margin-bottom: 18px; }
@@ -110,6 +135,7 @@
   .listings-table td { display: block; padding: 0; border: 0; }
   .role-title { font-size: 16px; }
   .role-cell { grid-area: 1 / 1 / 2 / 3; font-size: 16px; line-height: 1.35; }
+  .listings-table td { min-width: 0; }
   .company-cell { grid-area: 2 / 1 / 3 / 2; align-self: center; font-size: 13px; }
   .company-cell a > span:first-child { width: 20px; height: 20px; }
   .company-cell img { width: 14px; height: 14px; }
@@ -121,6 +147,10 @@
   .date-cell span { display: inline; }
   .action-cell { justify-self: end; }
   .board-pages button { flex: 1; }
+}
+@media (max-width:360px) {
+  .board-options { gap: 4px; }
+  .board-options .board-control { padding-inline: 8px; gap: 4px; }
 }
 @media (pointer:coarse), (max-width:799px) {
   .board-scopes button,.board-control,.board-pages button,.board-filters select,.action-cell :is(a,button) { min-height: 44px; min-width: 44px; }
