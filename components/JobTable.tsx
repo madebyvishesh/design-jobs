@@ -284,7 +284,7 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
           <button type="button" className="board-control" aria-expanded={filtersOpen} aria-controls="board-filters" onClick={() => setFiltersOpen(!filtersOpen)}>
             <SlidersHorizontal size={15} />Filters{(week || source !== 'all') && <Check size={14} />}
           </button>
-          <button type="button" className="board-control" aria-label="Detailed view" title="Detailed view" aria-pressed={detail} onClick={toggleDetail}>
+          <button type="button" className="board-control" title="Show job details" aria-pressed={detail} onClick={toggleDetail}>
             {detail ? <List size={16} /> : <Rows3 size={16} />} Details
           </button>
         </div>
@@ -334,7 +334,7 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
           </td>
           <td className="date-cell"><ListingDate job={job} currentYear={snapshotYear} /></td>
           <td className="portal-cell">
-            <div className="listing-portals">
+            <div className="listing-portals" role="group" aria-label="Job portals">
               <span className="portal-caption">Via</span>
               {listingSources(job).map(id => (
                 <span key={id} className={'portal-badge ' + portalColors[id]}>{sources[id]}</span>
