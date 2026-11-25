@@ -21,3 +21,4 @@ A public board for finding and saving design vacancies. Next.js and React serve 
 - Reworked tablet rows to pair job title and employer, shortened the introduction, labeled the details and portal controls, and kept dates and location qualifiers together.
 - Control-by-control review: grouped mobile filters, aligned listing metadata independently of row actions, and restored focus after empty searches and shortlist removals.
 - Added a portal breakdown that filters listings, grouped the headline with its timestamp, and reserved space for all three row actions when Details is open.
+- Replaced the large role total and portal chart after screenshot feedback. A sentence describes the roles, totals sit beside the results, and the portal selector remains under Filters.
