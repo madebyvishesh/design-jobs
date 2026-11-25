@@ -44,7 +44,7 @@ const getListings = cache(async () => {
 async function JobsContent() {
   const listings = await getListings();
   if (!listings) return (
-    <div className="board-empty" role="status">
+    <div className="board-width board-empty" role="status">
       <h2>Listings are temporarily unavailable</h2>
       <p>Try again in a few minutes.</p>
       <a className="board-control" href="/">Retry</a>
@@ -76,8 +76,8 @@ export default function Home() {
           <ThemeToggle />
         </div>
       </header>
-      <main id="jobs" className="board-width board-main">
-        <Suspense fallback={<p role="status" className="board-loading">Loading listings…</p>}>
+      <main id="jobs" className="board-main">
+        <Suspense fallback={<p role="status" className="board-width board-loading">Loading listings…</p>}>
           <JobsContent />
         </Suspense>
       </main>

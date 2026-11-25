@@ -22,3 +22,4 @@ A public board for finding and saving design vacancies. Next.js and React serve 
 - Control-by-control review: grouped mobile filters, aligned listing metadata independently of row actions, and restored focus after empty searches and shortlist removals.
 - Added a portal breakdown that filters listings, grouped the headline with its timestamp, and reserved space for all three row actions when Details is open.
 - Replaced the large role total and portal chart after screenshot feedback. A sentence describes the roles, totals sit beside the results, and the portal selector remains under Filters.
+- Restyled the existing table and mobile listings with neutral ink, a pale results surface and rounded controls. Portal colors and the green Remote indicator still identify each listing.
