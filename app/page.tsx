@@ -1,32 +1,49 @@
 import { Suspense, cache } from 'react';
+import { unstable_cache } from 'next/cache';
 import { fetchAllDesignJobs } from '@/lib/fetchAllJobs';
-import { getCachedJobs, setCachedJobs } from '@/lib/jobsCache';
+import { getCachedJobs } from '@/lib/jobsCache';
+import RefreshListings from '@/components/RefreshListings';
 import Section from '@/components/Section';
 import ParticleCanvas from '@/components/ParticleCanvas';
 import ThemeToggle from '@/components/ThemeToggle';
 import { ArrowRight, Briefcase, Building2, Globe2, Sparkles } from 'lucide-react';
 
-export const revalidate = 1800;
+export const revalidate = 0;
 export const maxDuration = 60;
 
-// Memoize the blob read so JobsContent and the footer timestamp share one fetch
-const getCached = cache(getCachedJobs);
+const refreshInterval = 30 * 60 * 1000;
+
+async function fetchSnapshot() {
+  const jobs = await fetchAllDesignJobs();
+  if (!jobs.aiJobs.length && !jobs.allJobs.length) {
+    throw new Error('No listings returned by job sources');
+  }
+  return { ...jobs, fetchedAt: Date.now() };
+}
+
+let pendingFetch: ReturnType<typeof fetchSnapshot> | undefined;
+
+const getListings = cache(async () => {
+  const published = await getCachedJobs();
+  const now = Date.now();
+  if (published && now - published.fetchedAt < refreshInterval) return published;
+
+  // Share the fallback across visits without overwriting the scheduled publication.
+  const window = String(Math.floor(now / refreshInterval));
+  const getFallback = unstable_cache(fetchSnapshot, ['listings-fallback', window], { revalidate: 1800 });
+  try {
+    pendingFetch ??= getFallback().finally(() => { pendingFetch = undefined; });
+    return await pendingFetch;
+  } catch (error) {
+    console.error('Listings refresh failed', error);
+    return published;
+  }
+});
 
 async function JobsContent() {
-  // 1. Try KV cache — instant when warm (production with KV configured)
-  const cached = await getCached();
-  let aiJobs, allJobs;
-
-  if (cached) {
-    ({ aiJobs, allJobs } = cached);
-  } else {
-    // 2. Cache miss: fetch live (first load, or local dev without KV)
-    const fresh = await fetchAllDesignJobs();
-    aiJobs = fresh.aiJobs;
-    allJobs = fresh.allJobs;
-    // Store in KV so the next request is instant
-    await setCachedJobs({ aiJobs, allJobs, fetchedAt: Date.now() });
-  }
+  const listings = await getListings();
+  if (!listings) return <p>Listings are temporarily unavailable.</p>;
+  const { aiJobs, allJobs } = listings;
 
   const totalJobs = aiJobs.length + allJobs.length;
   const companies = new Set([...aiJobs, ...allJobs].map(job => job.company)).size;
@@ -103,8 +120,8 @@ function JobsLoading() {
 }
 
 async function LastUpdated() {
-  const cached = await getCached();
-  const ts = cached?.fetchedAt ?? Date.now();
+  const listings = await getListings();
+  if (!listings) return <RefreshListings fetchedAt={0} interval={refreshInterval} />;
   const formatted = new Intl.DateTimeFormat('en-IN', {
     month: 'short',
     day: 'numeric',
@@ -113,11 +130,12 @@ async function LastUpdated() {
     minute: '2-digit',
     hour12: true,
     timeZone: 'Asia/Kolkata',
-  }).format(new Date(ts));
+  }).format(new Date(listings.fetchedAt));
 
   return (
     <span>
       Last fetched <span className="text-foreground">{formatted} IST</span>
+      <RefreshListings fetchedAt={listings.fetchedAt} interval={refreshInterval} />
     </span>
   );
 }
