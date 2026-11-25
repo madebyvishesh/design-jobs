@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
+import "./board.css";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -13,12 +14,12 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Design Jobs — Product, UX, Brand & Motion Roles",
   description:
-    "Design jobs at YC startups and top tech companies. Product designer, UX, brand, motion, and design engineering roles — updated hourly.",
+    "Design jobs at YC startups and top tech companies. Product designer, UX, brand, motion, and design engineering roles.",
   keywords: "design jobs,product designer,ux designer,design engineer,brand designer,startup design jobs,ai company careers,tech design jobs",
   openGraph: {
     title: "Design Jobs — Product, UX, Brand & Motion Roles",
     description:
-      "Browse curated design and design engineering jobs at the world's leading AI companies and top startups. Updated hourly.",
+      "Browse curated design and design engineering jobs at the world's leading AI companies and top startups.",
     type: "website",
   },
   twitter: {

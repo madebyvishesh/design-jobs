@@ -5,12 +5,14 @@ import { fetchAllGreenhouseJobs } from './fetchers/greenhouse';
 import { fetchAllLeverJobs } from './fetchers/lever';
 import { fetchRemotiveJobs } from './fetchers/remotive';
 import { fetchAllWorkdayJobs } from './fetchers/workday';
+import { classifyDate, preferredDate } from './jobDates';
 import { isDesignRole } from './filterJobs';
 
 function deduplicateAndMergeSources(jobs: Job[]): Job[] {
   const byKey = new Map<string, Job>();
 
-  for (const job of jobs) {
+  for (const raw of jobs) {
+    const job = { ...raw, ...classifyDate(raw, true) };
     // Normalise company name slightly for better matching
     const key = `${job.company.toLowerCase().replace(/[^a-z0-9]/g, '')}|${job.title.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
     const existing = byKey.get(key);
@@ -40,8 +42,7 @@ function deduplicateAndMergeSources(jobs: Job[]): Job[] {
         // Pull batch badge and logo from YC entry since it has richer company metadata
         batch: ycEntry?.batch ?? urlSource.batch,
         logoUrl: ycEntry?.logoUrl ?? urlSource.logoUrl,
-        // Use earlier of the two dates
-        postedAt: urlSource.postedAt < existing.postedAt ? urlSource.postedAt : existing.postedAt,
+        ...preferredDate(existing, job),
       });
     }
   }
@@ -69,12 +70,12 @@ export async function fetchAllDesignJobs(): Promise<{
     ...(leverResult.status === 'fulfilled' ? leverResult.value : []),
     ...(remotiveResult.status === 'fulfilled' ? remotiveResult.value : []),
     ...(workdayResult.status === 'fulfilled' ? workdayResult.value : []),
-  ].filter(job => isDesignRole(job.title));
+  ].filter(job => isDesignRole(job.title, job.department));
 
   const deduped = deduplicateAndMergeSources(allRaw);
 
   const sorted = deduped.sort(
-    (a, b) => new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime()
+    (a, b) => a.postedAt < b.postedAt ? 1 : a.postedAt > b.postedAt ? -1 : 0
   );
 
   return {

@@ -68,10 +68,13 @@ const EXCLUDE_KEYWORDS = [
   'system design engineer', 'design engineer - memory', 'clock design',
 ];
 
-export function isDesignRole(title: string | undefined | null): boolean {
+export function isDesignRole(title: string | undefined | null, department = ''): boolean {
   if (!title) return false;
   const lower = title.toLowerCase();
   if (EXCLUDE_KEYWORDS.some(kw => lower.includes(kw))) return false;
+  const facilityRole = /\b(data cent(?:er|re)|data hall|rack design|fit.out)\b/i;
+  const digitalRole = /\b(ux|ui|user experience|interaction design|product designer|design systems?)\b/i;
+  if (facilityRole.test(title + ' ' + department) && !digitalRole.test(title)) return false;
   if (INCLUDE_KEYWORDS.some(kw => lower.includes(kw))) return true;
   // Word-boundary check for short abbreviations like ux/ui
   return INCLUDE_WORD_KEYWORDS.some(kw => new RegExp(`\\b${kw}\\b`).test(lower));

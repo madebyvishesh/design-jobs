@@ -120,8 +120,8 @@ export async function fetchYCJobs(): Promise<Job[]> {
         location: job.location.replace(/ \/ Remote.*$/, '').replace(/, US$/, '').trim(),
         isRemote,
         url: `https://www.workatastartup.com/jobs/${job.id}`,
-        // companyLastActiveAt is company activity time, not job posting date — best available from YC API
-        postedAt: job.companyLastActiveAt ?? new Date(0).toISOString(),
+        // YC exposes company activity rather than a vacancy date.
+        postedAt: new Date(0).toISOString(),
         department: job.roleType ?? '',
         ats: 'yc' as AtsSource,
         sources: ['yc' as AtsSource],

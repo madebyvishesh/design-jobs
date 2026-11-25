@@ -55,7 +55,7 @@ export async function fetchRemotiveJobs(): Promise<Job[]> {
       location: job.candidate_required_location ?? 'Remote',
       isRemote: true,
       url: job.url,
-      postedAt: job.publication_date ?? new Date().toISOString(),
+      postedAt: job.publication_date ?? new Date(0).toISOString(),
       department: job.category ?? '',
       ats: 'remotive' as AtsSource,
       sources: ['remotive' as AtsSource],

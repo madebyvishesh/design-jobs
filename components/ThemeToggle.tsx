@@ -56,7 +56,7 @@ function finishWipe() {
 }
 
 export default function ThemeToggle() {
-  const [theme, setTheme] = useState<Theme>(getInitialTheme);
+  const [theme, setTheme] = useState<Theme>('light');
 
   useEffect(() => {
     const nextTheme = getInitialTheme();

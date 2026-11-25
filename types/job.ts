@@ -10,6 +10,8 @@ export type Job = {
   isRemote: boolean;
   url: string;
   postedAt: string;
+  dateKind?: 'posted' | 'updated' | 'created' | 'unknown';
+  dateSource?: AtsSource;
   department: string;
   ats: AtsSource;
   sources: AtsSource[];
