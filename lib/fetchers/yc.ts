@@ -52,9 +52,8 @@ async function fetchYCPage(path: string): Promise<YCJob[]> {
     }
 
     const data = await res.json() as { props?: { jobs?: YCJob[] } };
-    return data.props?.jobs ?? [];
-  } catch {
-    return [];
+    if (!Array.isArray(data.props?.jobs)) throw new Error('Missing YC jobs');
+    return data.props.jobs;
   } finally {
     clearTimeout(timeout);
   }
@@ -73,18 +72,17 @@ async function fetchYCPageFromHTML(path: string): Promise<YCJob[]> {
       },
       cache: 'no-store',
     });
-    if (!res.ok) return [];
+    if (!res.ok) throw new Error('HTTP ' + res.status);
     const html = await res.text();
     const match = html.match(/data-page="([^"]+)"/);
-    if (!match) return [];
+    if (!match) throw new Error('YC public listing format unavailable');
     const decoded = match[1]
       .replace(/&quot;/g, '"')
       .replace(/&amp;/g, '&')
       .replace(/&#39;/g, "'");
     const pageData = JSON.parse(decoded) as { props?: { jobs?: YCJob[] } };
-    return pageData.props?.jobs ?? [];
-  } catch {
-    return [];
+    if (!Array.isArray(pageData.props?.jobs)) throw new Error('Missing YC jobs');
+    return pageData.props.jobs;
   } finally {
     clearTimeout(timeout);
   }
@@ -97,9 +95,11 @@ export async function fetchYCJobs(): Promise<Job[]> {
     fetchYCPage('/jobs/l/product-manager'),
   ]);
 
+  if (designerJobs.status === 'rejected') throw designerJobs.reason;
+  if (productJobs.status === 'rejected') throw productJobs.reason;
   const allJobs: YCJob[] = [
-    ...(designerJobs.status === 'fulfilled' ? designerJobs.value : []),
-    ...(productJobs.status === 'fulfilled' ? productJobs.value : []),
+    ...designerJobs.value,
+    ...productJobs.value,
   ];
 
   const seen = new Set<number>();

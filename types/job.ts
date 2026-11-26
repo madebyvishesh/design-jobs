@@ -10,6 +10,8 @@ export type Job = {
   isRemote: boolean;
   url: string;
   postedAt: string;
+  boardKey?: string;
+  lastVerifiedAt?: number;
   firstSeenAt?: number;
   salary?: string;
   dateKind?: 'posted' | 'updated' | 'created' | 'unknown';

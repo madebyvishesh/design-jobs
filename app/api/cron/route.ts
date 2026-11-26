@@ -24,7 +24,7 @@ export async function GET(request: Request) {
   const jobs = await fetchAllDesignJobs();
   const total = jobs.aiJobs.length + jobs.allJobs.length;
 
-  if (!total) {
+  if (!jobs.report.some(board => board.status === 'ok')) {
     return NextResponse.json({ error: 'No listings returned by sources' }, { status: 503 });
   }
 

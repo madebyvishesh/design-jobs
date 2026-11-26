@@ -18,21 +18,26 @@ async function main() {
   console.log(`[${new Date().toISOString()}] Fetching all design jobs...`);
   const start = Date.now();
 
-  const { aiJobs, allJobs } = await fetchAllDesignJobs();
+  const { aiJobs, allJobs, report } = await fetchAllDesignJobs();
   const total = aiJobs.length + allJobs.length;
   const elapsed = ((Date.now() - start) / 1000).toFixed(1);
 
   console.log(`Fetched ${total} jobs (${aiJobs.length} AI + ${allJobs.length} non-AI) in ${elapsed}s`);
 
-  if (total === 0) {
-    console.error('Got 0 jobs — aborting to avoid overwriting a good cache with empty data');
+  if (!report.some(board => board.status === 'ok')) {
+    console.error('No board could be read successfully; keeping the previous publication');
     process.exit(1);
   }
 
-  const payload = { aiJobs, allJobs, fetchedAt: Date.now() };
+  for (const source of Array.from(new Set(report.map(b => b.source)))) {
+    const boards = report.filter(b => b.source === source);
+    console.log(source, JSON.stringify({ boards: boards.length, ok: boards.filter(b => b.status === 'ok').length, missing: boards.filter(b => b.status === 'missing').length, unavailable: boards.filter(b => b.status === 'unavailable').length, received: boards.reduce((n,b) => n + b.received,0) }));
+  }
+  const payload = { aiJobs, allJobs, report, fetchedAt: Date.now() };
 
-  await setCachedJobs(payload);
-  console.log('Done.');
+  const snapshot = await setCachedJobs(payload);
+  const jobs = [...snapshot.allJobs, ...snapshot.aiJobs];
+  console.log('Published', jobs.length, 'roles, including', jobs.filter(j => j.lastVerifiedAt).length, 'last known listings from unavailable boards.');
 }
 
 main().catch((err) => {

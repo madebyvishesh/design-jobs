@@ -24,28 +24,10 @@ export async function fetchRemotiveJobs(): Promise<Job[]> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 12000);
   try {
-    // Fetch both Design and Product categories
-    const [designRes, productRes] = await Promise.allSettled([
-      fetch('https://remotive.com/api/remote-jobs?category=Design&limit=100', {
-        signal: controller.signal,
-        next: { revalidate: 3600 },
-      }),
-      fetch('https://remotive.com/api/remote-jobs?category=Product&limit=100', {
-        signal: controller.signal,
-        next: { revalidate: 3600 },
-      }),
-    ]);
-
-    const jobs: RemotiveJob[] = [];
-    if (designRes.status === 'fulfilled' && designRes.value.ok) {
-      const data: RemotiveResponse = await designRes.value.json();
-      jobs.push(...(data.jobs ?? []));
-    }
-    if (productRes.status === 'fulfilled' && productRes.value.ok) {
-      const data: RemotiveResponse = await productRes.value.json();
-      jobs.push(...(data.jobs ?? []));
-    }
-
+    const res = await fetch('https://remotive.com/api/remote-jobs', { signal: controller.signal, next: { revalidate: 3600 } });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const { jobs }: RemotiveResponse = await res.json();
+    if (!Array.isArray(jobs)) throw new Error('Missing jobs array');
     return jobs.map(job => ({
       id: `remotive-${job.id}`,
       title: job.title,
@@ -62,8 +44,6 @@ export async function fetchRemotiveJobs(): Promise<Job[]> {
       sources: ['remotive' as AtsSource],
       isAI: isAIFromCurated(job.company_name),
     }));
-  } catch {
-    return [];
   } finally {
     clearTimeout(timeout);
   }

@@ -1,3 +1,4 @@
+import { collectBoards, checkBoardResponse, type BoardReport } from '../boardFetch';
 import type { Job, AtsSource } from '@/types/job';
 import { isAIFromCurated } from './curatedAI';
 
@@ -23,9 +24,10 @@ async function fetchGreenhouseJobs(slug: string, name: string, domain: string, b
       signal: controller.signal,
       next: { revalidate: 3600 },
     });
-    if (!res.ok) return [];
+    checkBoardResponse(res);
     const data = await res.json() as { jobs?: GHJob[] };
-    return (data.jobs ?? []).map(job => {
+    if (!Array.isArray(data.jobs)) throw new Error('Missing jobs array');
+    return data.jobs.map(job => {
       const loc = job.location?.name || (job.offices ?? []).map(office => office.name).filter(Boolean).join(' · ');
       return {
         id: `gh-${slug}-${job.id}`,
@@ -45,8 +47,6 @@ async function fetchGreenhouseJobs(slug: string, name: string, domain: string, b
         batch,
       };
     });
-  } catch {
-    return [];
   } finally {
     clearTimeout(timeout);
   }
@@ -680,15 +680,13 @@ const GREENHOUSE_COMPANIES: Array<{ slug: string; name: string; domain: string; 
   { slug: 'clari', name: 'Clari', domain: 'clari.com' },
 ];
 
-export async function fetchAllGreenhouseJobs(): Promise<Job[]> {
+export async function fetchAllGreenhouseJobs(report: BoardReport[] = []): Promise<Job[]> {
   const seen = new Set<string>();
   const unique = GREENHOUSE_COMPANIES.filter(c => {
     if (seen.has(c.slug)) return false;
     seen.add(c.slug);
     return true;
   });
-  const results = await Promise.allSettled(
-    unique.map(c => fetchGreenhouseJobs(c.slug, c.name, c.domain, c.batch))
-  );
-  return results.flatMap(r => (r.status === 'fulfilled' ? r.value : []));
+  return collectBoards('greenhouse', unique, c => ({ board: c.slug, domain: c.domain }),
+    c => fetchGreenhouseJobs(c.slug, c.name, c.domain, c.batch), report);
 }

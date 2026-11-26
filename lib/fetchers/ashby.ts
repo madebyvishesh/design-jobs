@@ -1,3 +1,4 @@
+import { collectBoards, checkBoardResponse, type BoardReport } from '../boardFetch';
 import type { Job, AtsSource } from '@/types/job';
 import { isAIFromCurated } from './curatedAI';
 
@@ -26,9 +27,10 @@ async function fetchAshbyJobs(slug: string, name: string, domain: string, batch?
       signal: controller.signal,
       next: { revalidate: 3600 },
     });
-    if (!res.ok) return [];
+    checkBoardResponse(res);
     const data = await res.json() as { jobs?: AshbyJob[] };
-    return (data.jobs ?? []).map(job => ({
+    if (!Array.isArray(data.jobs)) throw new Error('Missing jobs array');
+    return data.jobs.map(job => ({
       id: `ashby-${slug}-${job.id}`,
       title: job.title,
       company: name,
@@ -45,8 +47,6 @@ async function fetchAshbyJobs(slug: string, name: string, domain: string, batch?
       isAI: isAIFromCurated(name),
       batch,
     }));
-  } catch {
-    return [];
   } finally {
     clearTimeout(timeout);
   }
@@ -487,7 +487,7 @@ const ASHBY_COMPANIES: Array<{ slug: string; name: string; domain: string; batch
   { slug: 'granola-hq', name: 'Granola', domain: 'granola.ai' },
 ];
 
-export async function fetchAllAshbyJobs(): Promise<Job[]> {
+export async function fetchAllAshbyJobs(report: BoardReport[] = []): Promise<Job[]> {
   // Deduplicate by slug before fetching
   const seen = new Set<string>();
   const unique = ASHBY_COMPANIES.filter(c => {
@@ -495,8 +495,6 @@ export async function fetchAllAshbyJobs(): Promise<Job[]> {
     seen.add(c.slug);
     return true;
   });
-  const results = await Promise.allSettled(
-    unique.map(c => fetchAshbyJobs(c.slug, c.name, c.domain, c.batch))
-  );
-  return results.flatMap(r => (r.status === 'fulfilled' ? r.value : []));
+  return collectBoards('ashby', unique, c => ({ board: c.slug, domain: c.domain }),
+    c => fetchAshbyJobs(c.slug, c.name, c.domain, c.batch), report);
 }

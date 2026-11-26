@@ -1,3 +1,4 @@
+import { collectBoards, checkBoardResponse, readPages, type BoardReport } from '../boardFetch';
 import type { Job, AtsSource } from '@/types/job';
 import { isAIFromCurated } from './curatedAI';
 
@@ -22,12 +23,13 @@ async function fetchLeverJobs(slug: string, name: string, domain: string, batch?
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 10000);
   try {
-    const res = await fetch(`https://api.lever.co/v0/postings/${slug}?mode=json`, {
-      signal: controller.signal,
-      next: { revalidate: 3600 },
-    });
-    if (!res.ok) return [];
-    const data = await res.json() as LeverJob[];
+    const data = await readPages<LeverJob>(async offset => {
+      const res = await fetch(`https://api.lever.co/v0/postings/${slug}?mode=json&limit=100&skip=${offset}`, {
+        signal: controller.signal, next: { revalidate: 3600 },
+      });
+      checkBoardResponse(res);
+      return { items: await res.json() };
+    }, job => job.id);
     return data.map(job => {
       const loc = job.categories?.location ?? '';
       return {
@@ -47,8 +49,6 @@ async function fetchLeverJobs(slug: string, name: string, domain: string, batch?
         batch,
       };
     });
-  } catch {
-    return [];
   } finally {
     clearTimeout(timeout);
   }
@@ -335,15 +335,13 @@ const LEVER_COMPANIES: Array<{ slug: string; name: string; domain: string; batch
   { slug: 'lucidmotors', name: 'Lucid Motors', domain: 'lucidmotors.com' },
 ];
 
-export async function fetchAllLeverJobs(): Promise<Job[]> {
+export async function fetchAllLeverJobs(report: BoardReport[] = []): Promise<Job[]> {
   const seen = new Set<string>();
   const unique = LEVER_COMPANIES.filter(c => {
     if (seen.has(c.slug)) return false;
     seen.add(c.slug);
     return true;
   });
-  const results = await Promise.allSettled(
-    unique.map(c => fetchLeverJobs(c.slug, c.name, c.domain, c.batch))
-  );
-  return results.flatMap(r => (r.status === 'fulfilled' ? r.value : []));
+  return collectBoards('lever', unique, c => ({ board: c.slug, domain: c.domain }),
+    c => fetchLeverJobs(c.slug, c.name, c.domain, c.batch), report);
 }

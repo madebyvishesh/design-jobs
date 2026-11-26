@@ -1,3 +1,4 @@
+import { collectBoards, checkBoardResponse, readPages, type BoardReport } from '../boardFetch';
 import type { Job, AtsSource } from '@/types/job';
 import { isAIFromCurated } from './curatedAI';
 
@@ -85,24 +86,17 @@ async function fetchWorkdayQuery(
   query: string,
 ): Promise<WorkdayPosting[]> {
   const url = `https://${company.tenant}.${company.dc}.myworkdayjobs.com/wday/cxs/${company.tenant}/${company.site}/jobs`;
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15000);
-  try {
+  return readPages<WorkdayPosting>(async offset => {
     const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ appliedFacets: {}, limit: 20, offset: 0, searchText: query }),
-      signal: controller.signal,
-      next: { revalidate: 3600 },
+      method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ appliedFacets: {}, limit: 20, offset, searchText: query }),
+      signal: AbortSignal.timeout(15000), next: { revalidate: 3600 },
     });
-    if (!res.ok) return [];
-    const data = (await res.json()) as WorkdayResponse;
-    return data.jobPostings ?? [];
-  } catch {
-    return [];
-  } finally {
-    clearTimeout(timeout);
-  }
+    checkBoardResponse(res);
+    const data: WorkdayResponse = await res.json();
+    if (!Array.isArray(data.jobPostings)) throw new Error('Missing jobPostings array');
+    return { items: data.jobPostings, total: data.total };
+  }, posting => posting.externalPath);
 }
 
 async function fetchWorkdayCompany(company: WorkdayCompany): Promise<Job[]> {
@@ -112,7 +106,7 @@ async function fetchWorkdayCompany(company: WorkdayCompany): Promise<Job[]> {
 
   const byPath = new Map<string, WorkdayPosting>();
   for (const r of results) {
-    if (r.status !== 'fulfilled') continue;
+    if (r.status === 'rejected') throw r.reason;
     for (const posting of r.value) {
       if (posting.externalPath && !byPath.has(posting.externalPath)) {
         byPath.set(posting.externalPath, posting);
@@ -141,9 +135,6 @@ async function fetchWorkdayCompany(company: WorkdayCompany): Promise<Job[]> {
   });
 }
 
-export async function fetchAllWorkdayJobs(): Promise<Job[]> {
-  const results = await Promise.allSettled(
-    WORKDAY_COMPANIES.map(c => fetchWorkdayCompany(c)),
-  );
-  return results.flatMap(r => (r.status === 'fulfilled' ? r.value : []));
+export function fetchAllWorkdayJobs(report: BoardReport[] = []) {
+  return collectBoards('workday', WORKDAY_COMPANIES, c => ({ board: c.tenant, domain: c.domain }), fetchWorkdayCompany, report);
 }

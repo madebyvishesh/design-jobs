@@ -1,8 +1,10 @@
 import type { Job } from '@/types/job';
 
+import type { BoardReport } from './boardFetch';
 import { withFirstSeen } from './firstSeen';
 
 export interface JobsPayload {
+  report?: BoardReport[];
   firstSeen?: Record<string, number>;
   aiJobs: Job[];
   allJobs: Job[];
@@ -34,14 +36,14 @@ export async function getCachedJobs(): Promise<JobsPayload | null> {
     }
     const snapshot: JobsPayload = await response.json();
     return Array.isArray(snapshot?.aiJobs) && Array.isArray(snapshot.allJobs) &&
-      snapshot.aiJobs.length + snapshot.allJobs.length > 0 && Number.isFinite(snapshot.fetchedAt)
+      (snapshot.aiJobs.length + snapshot.allJobs.length > 0 || snapshot.report?.some(board => board.status === 'ok')) && Number.isFinite(snapshot.fetchedAt)
       ? snapshot : null;
   } catch {
     return null;
   }
 }
 
-export async function setCachedJobs(payload: JobsPayload): Promise<void> {
+export async function setCachedJobs(payload: JobsPayload): Promise<JobsPayload> {
   const { head, put, BlobNotFoundError, BlobPreconditionFailedError } = await import('@vercel/blob');
   for (let attempt = 1; ; attempt++) {
     try {
@@ -56,13 +58,14 @@ export async function setCachedJobs(payload: JobsPayload): Promise<void> {
         const response = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(10000) });
         if (!response.ok) throw new Error('Could not read the previous job snapshot (' + response.status + ')');
         history = await response.json() as JobsPayload;
-        if (history.fetchedAt > payload.fetchedAt) return;
+        if (history.fetchedAt > payload.fetchedAt) return history;
       }
-      await put(BLOB_FILENAME, JSON.stringify(withFirstSeen(payload, history)), {
+      const snapshot = withFirstSeen(payload, history);
+      await put(BLOB_FILENAME, JSON.stringify(snapshot), {
         access: 'public', addRandomSuffix: false, allowOverwrite: Boolean(version),
         ifMatch: version?.etag, cacheControlMaxAge: 60, contentType: 'application/json',
       });
-      return;
+      return snapshot;
     } catch (error) {
       if (!(error instanceof BlobPreconditionFailedError) || attempt >= 3) throw error;
     }
