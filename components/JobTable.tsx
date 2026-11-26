@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpRight, Bookmark, BookmarkCheck, Check, Copy, Globe2, MapPin, Search, SlidersHorizontal, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpRight, Bookmark, BookmarkCheck, Check, ChevronDown, Copy, Globe2, MapPin, Search, SlidersHorizontal, X } from 'lucide-react';
 import BoardHeader from './BoardHeader';
 import type { Job, AtsSource } from '@/types/job';
 
@@ -266,7 +266,7 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
   const customSort = sortKey !== 'postedAt' || ascending;
   return (
     <div className="job-board">
-      <BoardHeader>
+      <BoardHeader overview={overview}>
         <div className="board-toolbar">
           <div className="board-search">
             <Search size={20} aria-hidden="true" />
@@ -276,7 +276,7 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
           </div>
           <div className="board-options">
             <button type="button" className="board-control" ref={filterTrigger} aria-label={week || source !== 'all' ? `Filters, ${Number(week) + Number(source !== 'all')} active` : 'Filters'} aria-expanded={filtersOpen} aria-controls="board-filters" onClick={() => setFiltersOpen(!filtersOpen)}>
-              <SlidersHorizontal size={15} />Filters{(week || source !== 'all') && <span className="filter-count" aria-hidden="true">{Number(week) + Number(source !== 'all')}</span>}
+              <SlidersHorizontal size={16} aria-hidden="true" />Filters{(week || source !== 'all') && <span className="filter-count" aria-hidden="true">{Number(week) + Number(source !== 'all')}</span>}
             </button>
           </div>
         </div>
@@ -289,27 +289,28 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
               filterTrigger.current?.focus();
             }
           }}>
-            <div className="filter-group">
-              <div className="filter-field">
-                <label htmlFor="portal-filter">Job portal</label>
+            <div className="filter-field">
+              <label htmlFor="portal-filter">Job portal</label>
+              <div className="filter-select">
                 <select id="portal-filter" value={source} onChange={e => { setSource(e.target.value); setPage(0); }}>
                   <option value="all">All portals</option>
                   {Object.entries(sources).map(([id, name]) => <option key={id} value={id}>{name}</option>)}
                 </select>
+                <ChevronDown size={14} aria-hidden="true" />
               </div>
-              <label className="board-control"><input type="checkbox" checked={week} onChange={e => { setWeek(e.target.checked); setPage(0); }} />Posted in the last 7 days</label>
             </div>
-            <div className="filter-group">
-              <div className="filter-field">
-                <label htmlFor="sort-order">Sort by</label>
+            <div className="filter-field">
+              <label htmlFor="sort-order">Sort by</label>
+              <div className="filter-select">
                 <select id="sort-order" value={sortKey + (ascending ? '+' : '-')} onChange={e => sortBy(e.target.value.slice(0, -1) as SortKey, e.target.value.endsWith('+'))}>
                   {Object.keys(columns).flatMap(id => ['+', '-'].map(dir =>
                     <option key={id + dir} value={id + dir}>{sortLabel(id as SortKey, dir === '+')}</option>))}
                 </select>
+                <ChevronDown size={14} aria-hidden="true" />
               </div>
-              <label className="board-control"><input type="checkbox" checked={detail} onChange={toggleDetail} />Show job details</label>
             </div>
-            <p className="feed-info">{overview.companies} companies · {overview.remote} remote roles <span>Last checked {checkedTime}</span></p>
+            <label className="board-control"><input type="checkbox" checked={week} onChange={e => { setWeek(e.target.checked); setPage(0); }} />Posted in the last 7 days</label>
+            <label className="board-control"><input type="checkbox" checked={detail} onChange={toggleDetail} />Show job details</label>
           </div>
         </div>
         <div className="directory-results">
@@ -338,7 +339,7 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
             {visible.length ? <div className="listings-table" data-details={detail} role="table" aria-label="Design job listings">
               <div className="listing-head" role="row">
                 {(Object.keys(columns) as SortKey[]).map(key => <div key={key} role="columnheader" aria-sort={key === sortKey ? (ascending ? 'ascending' : 'descending') : undefined}>
-                  <button type="button" onClick={() => sortBy(key)}>{columns[key]}{key === sortKey && (ascending ? <ArrowUp size={13} /> : <ArrowDown size={13} />)}</button>
+                  <button type="button" onClick={() => sortBy(key)}>{columns[key]}{key === sortKey && (ascending ? <ArrowUp size={14} aria-hidden="true" /> : <ArrowDown size={14} aria-hidden="true" />)}</button>
                   <span className="compact-column-name">{columns[key]}</span>
                 </div>)}
                 {detail && <div role="columnheader">Job portal</div>}
