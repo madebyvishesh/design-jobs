@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpRight, Bookmark, BookmarkCheck, Check, ChevronDown, Copy, EyeOff, Globe2, Link2, MapPin, Search, SlidersHorizontal, Undo2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpRight, Bookmark, BookmarkCheck, Check, ChevronDown, Copy, Globe2, Link2, MapPin, Search, SlidersHorizontal, X } from 'lucide-react';
 import { columns, sortLabel, sources, scopes, readBrowseParams, writeBrowseParams, type SortKey, type Scope, type BrowseCriteria } from '@/lib/browseParams';
 import { listingKnownSince } from '@/lib/listingAge';
 import { remoteLocation } from '@/lib/remoteLocation';
@@ -19,6 +19,7 @@ import SavedSearches from './SavedSearches';
 import { searchTerms, highlightWords, titleRelevance } from '@/lib/jobSearch';
 import companyLogos from '@/lib/companyLogos.json';
 import BoardHeader from './BoardHeader';
+import JobMoreActions from './JobMoreActions';
 import type { Job, AtsSource } from '@/types/job';
 
 const PAGE_SIZE = 50;
@@ -566,7 +567,7 @@ export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked,
               <div className="tablet-guide" aria-hidden="true">
                 <span>Role and company</span><span>Location and date</span>
               </div>
-              <div role="rowgroup" ref={rowGroup}>{visible.map(job => <div className="listing-row" role="row" key={job.id}
+              <div role="rowgroup" ref={rowGroup}>{visible.map(job => <div className="listing-row" role="row" key={job.id} data-expanded={opened === job.id || undefined}
                 onKeyDown={event => {
                   if (event.key !== 'Escape' || event.defaultPrevented || opened !== job.id) return;
                   event.stopPropagation();
@@ -587,7 +588,8 @@ export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked,
                 </div>
                 <div role="cell" className="company-cell"><a href={job.companyDomain ? 'https://' + job.companyDomain : job.url} target="_blank" rel="noopener noreferrer">
                   <CompanyAvatar key={job.logoUrl || job.companyDomain} job={job} /><span><HighlightText text={job.company} terms={terms} />{detail && job.batch && <small>{job.batch}</small>}</span>
-                </a>{detail && job.department && <span className="compact-department">{job.department}</span>}</div>
+                </a>{opened === job.id && job.isRemote && <span className="remote-label"><Globe2 size={12} aria-hidden="true" />{remoteBadge(job.location)}</span>}
+                  {detail && job.department && <span className="compact-department">{job.department}</span>}</div>
                 <div className="listing-place" role="presentation">
                   <div role="cell" className="location-cell"><JobLocation job={job} terms={terms} expanded={opened===job.id} toggle={()=>setOpened(opened===job.id ? '' : job.id)} /></div>
                   <div className="listing-attribution" role="presentation">
@@ -613,40 +615,33 @@ export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked,
                   <a style={liveIds.has(job.id) ? undefined : { visibility: 'hidden' }} href={job.url} target="_blank" rel="noopener noreferrer" aria-label={'Apply for ' + job.title + ' at ' + job.company}><span className="apply-label">Apply <ArrowUpRight size={14} aria-hidden="true" /></span></a>
                 </div></div>
                 {opened === job.id && <div role="cell" id={'detail-' + job.id} className="job-detail-panel">
-                  <div className="detail-content">
-                    <div className="detail-heading">
-                      <div className="detail-company">
-                        <span>{job.company}</span>
-                        {company !== job.company && (companyCounts.get(job.company) ?? 0) > 1 &&
-                          <button onClick={() => browseCompany(job.company)} aria-label={'See all '+companyCounts.get(job.company)+' roles at '+job.company}>
-                            {companyCounts.get(job.company)} open roles <ArrowUpRight size={12} aria-hidden="true" />
-                          </button>}
+                  <dl className="detail-facts">
+                    <div className="detail-full-location" data-wide={job.location.length > 48 || undefined}><dt>Location</dt><dd>{job.location || 'Not listed'}</dd></div>
+                    {job.salary && <div data-wide={job.salary.length > 48 || undefined}><dt>Listed pay</dt><dd className="listed-pay">{job.salary.replace(/^(?:base (?:salary|pay) range|pay range|salary range)\s*:?\s*·\s*/i, '')}</dd></div>}
+                    {job.department && <div><dt>Team</dt><dd>{job.department}</dd></div>}
+                    {arrangementOf(job) !== 'unknown' && !(job.isRemote && arrangementOf(job) === 'remote') && <div><dt>Work arrangement</dt><dd>{arrangements[arrangementOf(job)]}</dd></div>}
+                    {!employmentOf(job).includes('unknown') && <div><dt>Employment type</dt><dd>{employmentOf(job).map(t=>employmentTypes[t]).join(' / ')}</dd></div>}
+                    <div><dt>Job portal</dt><dd>{listingSources(job).map(id => sources[id]).join(', ')}</dd></div>
+                  </dl>
+                  {scope==='Saved' && saved.has(job.id) && <label className="private-note"><span>Private note <small>On this device</small></span>
+                    <textarea rows={2} value={entries[job.id]?.note||''} placeholder="Add a note" onChange={e=>{
+                      if(!saveNote(job.id,e.target.value))setNotice('Note kept for this visit. Device storage is unavailable.');
+                    }}/></label>}
+                  <div className="detail-bottom">
+                    <div className="detail-meta">
+                      <div className="detail-dates">
+                        <span><ListingDate job={job} currentYear={snapshotYear} /></span>
+                        {job.lastVerifiedAt && <span>Last verified <time dateTime={new Date(job.lastVerifiedAt).toISOString()}>{new Date(job.lastVerifiedAt).toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric', timeZone:'UTC'})}</time></span>}
                       </div>
-                      <h3>{job.title}</h3>
-                    <div className="detail-dates">
-                      <span><ListingDate job={job} currentYear={snapshotYear} /></span>
-                      {job.lastVerifiedAt && <span>Last verified <time dateTime={new Date(job.lastVerifiedAt).toISOString()}>{new Date(job.lastVerifiedAt).toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric', timeZone:'UTC'})}</time></span>}
+                      {company !== job.company && (companyCounts.get(job.company) ?? 0) > 1 && <button onClick={() => browseCompany(job.company)} aria-label={'See all '+companyCounts.get(job.company)+' roles at '+job.company}>
+                        {companyCounts.get(job.company)} open roles
+                      </button>}
                     </div>
-                    </div>
-                    <dl className="detail-facts">
-                      <div><dt>Location</dt><dd>{job.location || 'Not listed'}</dd></div>
-                      {job.salary && <div><dt>Listed pay</dt><dd>{job.salary.replace(/^(?:base (?:salary|pay) range|pay range|salary range)\s*:?\s*·\s*/i, '')}</dd></div>}
-                      {job.department && <div><dt>Team</dt><dd>{job.department}</dd></div>}
-                      {arrangementOf(job) !== 'unknown' && <div><dt>Work arrangement</dt><dd>{arrangements[arrangementOf(job)]}</dd></div>}
-                      {!employmentOf(job).includes('unknown') && <div><dt>Employment type</dt><dd>{employmentOf(job).map(t=>employmentTypes[t]).join(' / ')}</dd></div>}
-                      <div><dt>Job portal</dt><dd>{listingSources(job).map(id => sources[id]).join(', ')}</dd></div>
-                    </dl>
-                    {scope==='Saved' && saved.has(job.id) && <label className="private-note"><span>Private note <small>On this device</small></span>
-                      <textarea rows={2} value={entries[job.id]?.note||''} placeholder="Add a note" onChange={e=>{
-                        if(!saveNote(job.id,e.target.value))setNotice('Note kept for this visit. Device storage is unavailable.');
-                      }}/></label>}
-                  </div>
-                  <div className="detail-actions">
-                    {liveIds.has(job.id) && <a className="detail-apply" href={job.url} target="_blank" rel="noopener noreferrer">Apply <ArrowUpRight size={15} aria-hidden="true" /></a>}
-                    {liveIds.has(job.id) && <button className="detail-share" aria-label="Share role" onClick={e=>share(job,e.currentTarget)}><Link2 size={15} aria-hidden="true" /><span>Share<span className="share-suffix"> role</span></span></button>}
-                    <div className="detail-utilities">
-                      <button aria-label={copiedId === job.id ? 'Link copied' : 'Copy application link'} title="Copy application link" onClick={event => copy(job, event.currentTarget)}>{copiedId === job.id ? <Check size={14} aria-hidden="true"/> : <Copy size={14} aria-hidden="true"/>}<span>{copiedId === job.id ? 'Link copied' : 'Copy application link'}</span></button>
-                      <button aria-label={hiddenIds.has(job.id) ? 'Restore role' : 'Hide this role'} title={hiddenIds.has(job.id) ? 'Restore role' : 'Hide this role'} onClick={() => changeHidden(job)}>{hiddenIds.has(job.id) ? <Undo2 size={14} aria-hidden="true"/> : <EyeOff size={14} aria-hidden="true"/>}<span>{hiddenIds.has(job.id) ? 'Restore role' : 'Hide this role'}</span></button>
+                    <div className="detail-actions">
+                      {liveIds.has(job.id) && <a className="detail-apply" href={job.url} target="_blank" rel="noopener noreferrer">Apply <ArrowUpRight size={15} aria-hidden="true" /></a>}
+                      {liveIds.has(job.id) && <button className="detail-share" aria-label="Share role" onClick={e=>share(job,e.currentTarget)}><Link2 size={15} aria-hidden="true" /><span>Share<span className="share-suffix"> role</span></span></button>}
+                      <JobMoreActions hidden={hiddenIds.has(job.id)} copied={copiedId === job.id}
+                        copy={trigger => copy(job, trigger)} toggleHidden={() => changeHidden(job)} />
                     </div>
                   </div>
                 </div>}

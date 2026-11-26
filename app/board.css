@@ -338,52 +338,90 @@ html.theme-reveal::view-transition { pointer-events: none; }
 .field-options label, .field-options button { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 36px; padding: 6px 9px; border-radius: var(--menu-item-radius); cursor: pointer; }
 .field-options span { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--subtle); }
 .field-options :is(label,button):focus-within { background: var(--soft); }
-.job-detail-panel {
-  grid-column: 1 / -1; min-width: 0; margin: 6px 0 12px;
-  --card-radius:20px; --card-inset:5px;
-  padding:var(--card-inset); border-radius:var(--card-radius); background:var(--soft);
-  font-size:14px; overflow-wrap:anywhere;
+.listings-table[data-details] .listing-row[data-expanded] {
+  --summary-inset:16px;
+  display:grid;grid-template-columns:minmax(0,1fr) auto;
+  grid-template-areas:"title actions" "company actions" "details details";
+  gap:0 12px;align-items:start;padding:var(--summary-inset);
+  border:0;border-radius:calc(var(--summary-inset) + var(--control-radius));
+  background:var(--soft);
 }
-.listing-row:has(.job-detail-panel) {background:transparent;}
-.detail-content {
-  display:grid; grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr); gap:18px 32px;
-  padding:clamp(16px,2vw,24px); border-radius:calc(var(--card-radius) - var(--card-inset));
-  background:var(--surface); box-shadow:0 0 0 1px color-mix(in srgb,var(--line) 65%,transparent);
+.listing-row[data-expanded] .role-cell {grid-area:title;}
+.listing-row[data-expanded] .role-title {align-items:center;padding:0;min-height:32px;font-size:clamp(18px,1.5vw,22px);line-height:1.28;font-weight:600;letter-spacing:-.026em;}
+.listing-row[data-expanded] .role-title [data-clip] {white-space:normal;text-wrap:wrap;overflow:visible;}
+.listing-row[data-expanded] :is(.role-detail,.salary-detail,.compact-department,.copy-job,.listing-place,.title-arrow) {display:none;}
+.listing-row[data-expanded] .company-cell {grid-area:company;display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px;max-width:none;order:0;color:var(--subtle);font-size:13px;}
+.listing-row[data-expanded] .company-cell a {align-items:center;padding:0;}
+.listing-row[data-expanded] .action-cell {grid-area:actions;display:block;align-self:start;}
+.listing-row[data-expanded] .action-cell > div {display:flex;}
+.listing-row[data-expanded] .row-disclosure {background:var(--tint);color:var(--ink);}
+.listings-table .listing-row[data-expanded]::after {display:none;}
+.job-detail-panel {grid-area:details;min-width:0;display:grid;gap:14px;padding-top:16px;font-size:14px;overflow-wrap:anywhere;}
+.detail-facts {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px 24px;}
+.detail-facts > [data-wide] {grid-column:span 2;}
+.detail-facts dt,.detail-meta,.private-note small {font-size:12px;color:var(--subtle);}
+.detail-facts dd {margin-top:3px;line-height:1.45;white-space:pre-line;}
+.job-detail-panel .private-note {max-width:40rem;}
+.detail-bottom,.detail-meta,.detail-dates,.detail-actions,.detail-actions :is(button,a) {display:flex;align-items:center;}
+.detail-bottom {padding-top:8px;border-top:1px solid var(--line);gap:6px 16px;flex-wrap:wrap;justify-content:space-between;}
+.detail-meta,.detail-dates {gap:3px 12px;flex-wrap:wrap;font-variant-numeric:tabular-nums;}
+.detail-meta button {text-decoration:underline;text-underline-offset:3px;min-height:32px;}
+.detail-actions {gap:6px;}
+.detail-actions :is(button,a) {min-height:34px;justify-content:center;gap:6px;font-size:13px;border-radius:var(--control-radius);}
+.detail-apply,.detail-share {padding-inline:12px;font-weight:550;}
+.detail-apply,.listing-row[data-expanded] .apply-label {background:var(--ink);color:var(--surface);}
+.detail-share,.detail-more > button {background:var(--surface);box-shadow:inset 0 0 0 1px var(--line);}
+.detail-more {position:relative;}
+.detail-more > button {min-width:34px;}
+.detail-more-options {position:absolute;z-index:12;top:calc(100% + 5px);right:0;width:184px;padding:var(--menu-padding);border:1px solid var(--line);border-radius:var(--menu-radius);background:var(--surface);box-shadow:0 6px 24px rgb(0 0 0 / .12);}
+.detail-more-options[data-above=true] {top:auto;bottom:calc(100% + 5px);}
+.detail-more-options button {width:100%;justify-content:flex-start;padding:4px 8px;border-radius:var(--menu-item-radius);}
+@media (hover:hover) and (pointer:fine) {
+  .detail-more-options button:hover,.detail-more > button:hover,.detail-share:hover {background:var(--tint);}
 }
-.detail-content .private-note {grid-column:1/-1;}
-.detail-content .private-note textarea {background:var(--soft);border-color:transparent;}
-.detail-heading {align-self:start;}
-.detail-heading .detail-dates {margin-top:10px;}
-.detail-company,.detail-company button,.detail-dates,.detail-actions,.detail-utilities,
-.detail-actions :is(a,button) { display: flex; align-items: center; }
-.detail-company { flex-wrap: wrap; gap: 0 12px; color: var(--subtle); font-size: 13px; }
-.detail-company button { gap: 2px; min-height: 32px; text-decoration: underline; text-underline-offset: 3px; }
-.detail-heading h3 { max-width: 60ch; margin-top: 2px; font-size: clamp(18px, 1.6vw, 23px); line-height: 1.25; font-weight: 580; letter-spacing: -.025em; }
-.detail-facts { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px 24px;align-content:start; }
-.detail-facts dt,.detail-dates,.private-note small { color: var(--subtle); font-size: 12px; }
-.detail-facts dd { margin-top: 3px; line-height: 1.45; white-space: pre-line; }
-.detail-dates { flex-wrap: wrap; gap: 2px 14px; font-variant-numeric: tabular-nums; }
-.detail-actions { flex-wrap: wrap; gap:4px 8px;padding:var(--card-inset); }
-.detail-actions :is(a,button) { justify-content: center; gap: 6px; min-height: 36px; border-radius: var(--control-radius); font-size: 13px; }
-.detail-actions :is(.detail-apply,.detail-share) {border-radius:calc(var(--card-radius) - var(--card-inset) - var(--card-inset));padding: 0 14px; font-weight: 550; }
-.detail-apply { background: var(--ink); color: var(--surface); }
-.detail-share { background: var(--surface); }
-.detail-utilities { margin-left: auto; flex-wrap: wrap; gap: 4px 12px; }
-.detail-utilities button { color: var(--subtle); }
-@media (hover:hover) {
-  .detail-utilities button:hover,.detail-company button:hover { color: var(--ink); text-decoration: underline; }
-  .detail-actions .detail-share:hover { background: var(--tint); }
-}
-@media (max-width:900px) { .detail-content {grid-template-columns:minmax(0,1fr);} .detail-facts { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px 20px; } }
+@media (min-width:680px) { .detail-actions .detail-apply {display:none;} }
+@media (min-width:680px) and (max-width:900px) { .detail-facts {grid-template-columns:repeat(2,minmax(0,1fr));} }
 @media (max-width:679px) {
-  .detail-content {gap:16px;padding:14px;}
-  .detail-heading .detail-dates {margin-top:6px;}
-  .detail-facts { grid-template-columns: minmax(0,1fr); gap: 8px; }
-  .detail-facts > div { display: grid; grid-template-columns: minmax(5rem, .8fr) minmax(0, 1.5fr); gap: 10px; align-items: baseline; }
-  .detail-facts dd { margin: 0; }
-  .detail-utilities {gap:0;flex-wrap:nowrap;}
-  .detail-utilities button {min-width:44px;}
-  .detail-utilities button span {display:none;}
+  .listings-table[data-details] .listing-row[data-expanded] {--summary-inset:12px;grid-template-columns:minmax(0,1fr) 44px;gap:0 6px;}
+  .listing-row[data-expanded] .company-cell {align-self:start;}
+  .listing-row[data-expanded] .action-cell > div {flex-direction:column;gap:0;}
+  .listings-table[data-details] .listing-row[data-expanded] .action-cell a {display:none;}
+  .listing-row[data-expanded] .role-title {min-height:44px;}
+  .job-detail-panel {padding-top:10px;gap:10px;}
+  .detail-facts {grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 16px;}
+  .detail-bottom {display:grid;grid-template-columns:minmax(0,1fr);gap:4px;}
+  .detail-actions {justify-content:flex-start;}
+  .detail-more {margin-inline-start:auto;}
+}
+@media (pointer:coarse),(max-width:679px) {
+  .detail-meta button,.detail-more > button {min-height:44px;min-width:44px;}
+}
+@media (max-width:1079px), (pointer:coarse) {
+  .listing-row[data-expanded] .row-disclosure,
+  .detail-actions .detail-share,
+  .detail-more > button {
+    background: transparent;
+    box-shadow: none;
+    color: var(--subtle);
+  }
+  .detail-actions .detail-share { padding-inline: 6px; }
+  .detail-actions .detail-apply {
+    position: relative;
+    isolation: isolate;
+    background: transparent;
+    padding-inline: 10px;
+  }
+  .detail-actions .detail-apply::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    inset: 6px 0;
+    border-radius: var(--control-radius);
+    background: var(--ink);
+  }
+  .listing-row[data-expanded] .row-disclosure:active,
+  .detail-actions .detail-share:active,
+  .detail-more > button:is(:active,[aria-expanded=true]) { color: var(--ink); background: var(--tint); }
 }
 .row-disclosure[aria-expanded=true] svg { transform: rotate(180deg); }
 .page-progress { align-self: center; color: var(--subtle); font-size: 13px; }
@@ -530,7 +568,7 @@ body:has(:is(.filter-sheet,.compare-dialog)[open]) {overflow:hidden;}
 .compare-inner .sheet-heading {margin-bottom:8px;}
 
 @media (pointer:coarse) and (min-width:680px) and (max-width:1079px) {
-  .listings-table[data-details] .role-title {align-items:flex-end;padding-block:0 3px;}
+  .listings-table[data-details] .listing-row:not([data-expanded]) .role-title {align-items:flex-end;padding-block:0 3px;}
   .company-cell a {align-items:flex-start;padding-top:2px;}
   .listing-place,.action-cell {align-self:center;}
   .listing-place {padding-top:0;}
@@ -539,7 +577,7 @@ body:has(:is(.filter-sheet,.compare-dialog)[open]) {overflow:hidden;}
 #board-filters input[type=checkbox]:checked {background:var(--ink);border-color:var(--ink);}
 #board-filters input[type=checkbox]:checked::after {border-color:var(--surface);}
 @media (pointer:coarse),(max-width:679px) {
-  .detail-company button,.sheet-heading button {min-width:44px;min-height:44px;}
+  .sheet-heading button {min-width:44px;min-height:44px;}
 }
 
 .secondary-filters .display-toggles {grid-column:span 2;align-self:end;}
