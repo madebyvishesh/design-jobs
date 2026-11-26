@@ -94,14 +94,15 @@
 .listing-row { --row-action-size: 32px; padding-block: 11px; min-height: 57px; border-radius: var(--control-radius); }
 .listing-row [role=cell],.listing-head [role=columnheader] { min-width: 0; overflow-wrap: anywhere; }
 .compact-column-name,.portal-caption,.place-pin { display: none; }
-.listing-place,.listing-attribution { display: contents; }
+.listing-context,.listing-place,.listing-attribution { display: contents; }
 .role-cell,.action-cell { align-self: start; }
 .listing-row .role-title { display: inline-flex; align-items: flex-start; min-height: var(--row-action-size); padding-block: calc((var(--row-action-size) - 1lh) / 2) 4px; }
 .role-title { font-size: 16px; line-height: 1.35; letter-spacing: -.027em; font-weight: 540; text-wrap: pretty; }
 .company-cell a { max-width: 100%; display: inline-flex; align-items: center; gap: 8px; vertical-align: middle; }
 .company-cell a > span:last-child { min-width: 0; line-height: 1.4; }
 .company-avatar { flex: none; position: relative; display: inline-grid; place-items: center; width: 25px; height: 25px; border-radius: 6px; overflow: hidden; background: var(--soft); border: 1px solid var(--line); font-size: 11px; font-weight: 600; color: var(--subtle); }
-.company-avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: white; padding: 2px; }
+.company-avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; padding: 2px; }
+.company-avatar img[data-ready] { background: white; }
 .role-detail,.company-cell small { display: block; margin-top: 3px; font-weight: 400; color: var(--subtle); font-size: 12px; }
 .location-cell,.date-cell { color: var(--subtle); line-height: 1.45; }
 .listing-location,.listing-portals { display: flex; align-items: center; flex-wrap: wrap; gap: 3px 7px; }
@@ -195,28 +196,45 @@
   .board-scopes button { padding-inline: var(--listing-inset); }
   .results-nav { display: block; padding-block: 5px 3px; }
   .results-summary { min-height: 29px; padding-inline: var(--listing-inset); }
-  .listings-table[data-details] .listing-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0 8px; padding: 5px var(--listing-inset); border-radius: 0; }
+  .listings-table[data-details] .listing-row {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0,1fr) auto minmax(44px,max-content);
+    gap: 0 4px;
+    align-items: start;
+    padding: 6px var(--listing-inset) 12px calc(var(--listing-inset) + 39px);
+    border-radius: 0;
+  }
   .listing-row + .listing-row { border-top: 1px solid color-mix(in srgb, var(--line) 62%, transparent); }
-  .role-cell { flex: 1 1 calc(100% - 52px); }
-  .role-title { font-size: 17px; line-height: 1.3; }
-  .title-arrow { display: inline; color: var(--subtle); }
-  .title-arrow svg { display: inline-block; margin-inline-start: 3px; vertical-align: baseline; }
-  .action-cell .save-job { order: 1; width: 44px; height: 44px; align-self: flex-start; }
-  .company-cell { order: 2; max-width: 100%; font-weight: 500; }
-  .company-cell a { gap: 6px; padding-block-end: 14px; }
-  .role-detail { display: block; margin-block: 0 3px; }
+  .role-cell { grid-area: 1 / 1 / 2 / 3; }
+  .role-title { font-size: 16px; font-weight: 590; line-height: 1.35; letter-spacing: -.018em; }
+  .title-arrow { display: none; }
+  .action-cell .save-job { grid-area: 1 / 3; align-self: start; justify-self: end; width: 44px; height: 44px; }
+  .listing-context { grid-area: 2 / 1 / 3 / -1; display: block; min-width: 0; line-height: 1.5; font-size: 13px; overflow-wrap: anywhere; }
+  .company-cell,.company-cell a,.location-cell,.listing-location { display: inline; }
+  .company-cell { font-size: inherit; font-weight: 550; }
+  .company-cell a > span:last-child { line-height: inherit; }
+  .company-avatar {
+    position: absolute; inset-inline-start: var(--listing-inset); top: 13px;
+    width: 29px; height: 29px; border-radius: 7px;
+  }
+  .company-cell a::before {
+    content: ""; position: absolute; top: 6px; inset-inline-start: calc(var(--listing-inset) - 7px); width: 44px; height: 44px;
+  }
+  .location-cell { font-size: inherit; }
+  .location-cell::before { content: "·"; color: var(--subtle); padding-inline: .4em; }
+  .listing-location .remote-label { vertical-align: baseline; margin-inline-end: 4px; }
+  .role-detail { display: block; margin-block: 0 4px; }
   .compact-department { display: none; }
-  .company-avatar { width: 22px; height: 22px; border-radius: 5px; }
-  .location-cell { order: 3; flex: 1 1 max-content; max-width: 100%; align-self: flex-start; padding-block: 5px 8px; }
-  .listing-location { align-items: baseline; gap: 4px 5px; }
-  .place-pin { display: inline-block; margin-inline-end: 3px; vertical-align: -1px; }
   .listing-attribution,.action-cell a { display: none; }
   .action-cell,.action-cell > div { display: contents; }
-  .listings-table[data-details=true] .listing-row::after { content: ""; order: 4; flex-basis: 100%; }
-  .listings-table[data-details=true] .title-arrow { display: none; }
-  .listings-table[data-details=true] .listing-attribution { order: 5; flex: 1 1 0; min-width: 0; display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 8px; }
-  .copy-job { order: 6; }
-  .listings-table[data-details=true] .action-cell a { order: 7; display: inline-flex; }
+  .listings-table[data-details=true] .listing-context { display: contents; }
+  .listings-table[data-details=true] .company-cell { grid-area: 2 / 1 / 3 / -1; }
+  .listings-table[data-details=true] .location-cell { grid-area: 3 / 1 / 4 / -1; padding-block-start: 2px; }
+  .listings-table[data-details=true] .location-cell::before { content: none; }
+  .listings-table[data-details=true] .listing-attribution { grid-area: 4 / 1; display: flex; align-self: center; align-items: baseline; flex-wrap: wrap; gap: 2px 8px; }
+  .copy-job { grid-area: 4 / 2; }
+  .listings-table[data-details=true] .action-cell a { grid-area: 4 / 3; justify-self: end; display: inline-flex; }
   .apply-label { font-size: 12px; }
   .portal-caption { display: inline; color: var(--subtle); }
   .pages-desktop { display: none; }

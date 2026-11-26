@@ -23,10 +23,10 @@ function JobLocation({ job, terms }: { job: Job; terms: string[] }) {
   const raw = job.location.trim();
   const location = job.isRemote ? remoteLocation(raw) : raw;
   return (
-    <div className="listing-location">
+    <span className="listing-location">
       {job.isRemote && <span className="remote-label"><Globe2 size={13} aria-hidden="true" />Remote</span>}
       {location ? <span>{!job.isRemote && <MapPin size={12} className="place-pin" aria-hidden="true" />}<HighlightText text={location} terms={terms} /></span> : !job.isRemote && 'Location unavailable'}
-    </div>
+    </span>
   );
 }
 
@@ -58,8 +58,11 @@ function CompanyAvatar({ job }: { job: Job }) {
       {job.company.charAt(0).toUpperCase()}
       {src && <img key={src} src={src} width={24} height={24} alt="" loading="lazy" decoding="async"
         ref={image => {
-          if (image?.complete && !image.naturalWidth) setAttempt(attempt + 1);
+          if (!image?.complete) return;
+          if (image.naturalWidth) image.dataset.ready = '';
+          else setAttempt(attempt + 1);
         }}
+        onLoad={event => { event.currentTarget.dataset.ready = ''; }}
         onError={() => setAttempt(attempt + 1)} />}
     </span>
   );
@@ -450,21 +453,23 @@ export default function JobTable({ jobs, fetchedAt, checked, initial }: Props) {
                     }}>{entries[job.id]?.applied ? <><Check size={13} />Applied</> : 'Mark as applied'}</button>
                   </div>}
                 </div>
-                <div role="cell" className="company-cell"><a href={job.companyDomain ? 'https://' + job.companyDomain : job.url} target="_blank" rel="noopener noreferrer">
-                  <CompanyAvatar key={job.logoUrl || job.companyDomain} job={job} /><span><HighlightText text={job.company} terms={terms} />{detail && job.batch && <small>{job.batch}</small>}</span>
-                </a>{detail && job.department && <span className="compact-department">{job.department}</span>}</div>
-                <div className="listing-place" role="presentation">
-                  <div role="cell" className="location-cell"><JobLocation job={job} terms={terms} /></div>
-                  <div className="listing-attribution" role="presentation">
-                    <div role="cell" className="date-cell"><ListingDate job={job} currentYear={snapshotYear} /></div>
-                    {detail && <div role="cell" className="portal-cell">
-                      <div className="listing-portals" role="group" aria-label="Job portals">
-                        <span className="portal-caption">Via</span>
-                        {listingSources(job).map(id => (
-                          <span key={id} data-portal={id} className="portal-badge">{sources[id]}</span>
-                        ))}
-                      </div>
-                    </div>}
+                <div className="listing-context" role="presentation">
+                  <div role="cell" className="company-cell"><a href={job.companyDomain ? 'https://' + job.companyDomain : job.url} target="_blank" rel="noopener noreferrer">
+                    <CompanyAvatar key={job.logoUrl || job.companyDomain} job={job} /><span><HighlightText text={job.company} terms={terms} />{detail && job.batch && <small>{job.batch}</small>}</span>
+                  </a>{detail && job.department && <span className="compact-department">{job.department}</span>}</div>
+                  <div className="listing-place" role="presentation">
+                    <div role="cell" className="location-cell"><JobLocation job={job} terms={terms} /></div>
+                    <div className="listing-attribution" role="presentation">
+                      <div role="cell" className="date-cell"><ListingDate job={job} currentYear={snapshotYear} /></div>
+                      {detail && <div role="cell" className="portal-cell">
+                        <div className="listing-portals" role="group" aria-label="Job portals">
+                          <span className="portal-caption">Via</span>
+                          {listingSources(job).map(id => (
+                            <span key={id} data-portal={id} className="portal-badge">{sources[id]}</span>
+                          ))}
+                        </div>
+                      </div>}
+                    </div>
                   </div>
                 </div>
                 <div role="cell" className="action-cell"><div>
