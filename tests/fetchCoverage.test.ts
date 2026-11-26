@@ -58,3 +58,12 @@ test('surfaces a long retry interval, a challenge and a retired board immediatel
   await assert.rejects(readBoardJson(url), BoardMissing);
   assert.equal(fetch.mock.callCount(), 3);
 });
+
+test('partial detail reads only retain unverified URLs, including when another job has actually closed', () => {
+  const closed = role('closed'), unknown = role('unknown');
+  const previous = { fetchedAt: 10, aiJobs: [], allJobs: [closed, unknown] };
+  const partial: BoardReport = { source: 'greenhouse', board: 'studio', domain: 'studio.example',
+    status: 'partial', received: 0, unverifiedUrls: [unknown.url] };
+  const result = withFirstSeen({ fetchedAt: 20, aiJobs: [], allJobs: [], report: [partial] }, previous);
+  assert.deepEqual(result.allJobs.map(j => [j.id, j.lastVerifiedAt]), [['unknown', 10]]);
+});

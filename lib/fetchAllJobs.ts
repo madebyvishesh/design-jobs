@@ -1,3 +1,4 @@
+import type { Job } from '../types/job';
 import { fetchYCJobs } from './fetchers/yc';
 import { fetchAllAshbyJobs } from './fetchers/ashby';
 import { fetchAllGreenhouseJobs } from './fetchers/greenhouse';
@@ -8,13 +9,13 @@ import { collectBoards, type BoardReport } from './boardFetch';
 import { mergePostings } from './mergePostings';
 import { isDesignRole } from './filterJobs';
 
-export async function fetchAllDesignJobs() {
+export async function fetchAllDesignJobs(previous: Job[] = []) {
   const report: BoardReport[] = [];
   const groups = await Promise.all([
     collectBoards('yc', ['public'], board => ({ board, domain: '' }), fetchYCJobs, report),
     fetchAllAshbyJobs(report), fetchAllGreenhouseJobs(report), fetchAllLeverJobs(report),
     collectBoards('remotive', ['public'], board => ({ board, domain: '' }), fetchRemotiveJobs, report),
-    fetchAllWorkdayJobs(report),
+    fetchAllWorkdayJobs(report, previous),
   ]);
   const sorted = mergePostings(groups.flat().filter(job => isDesignRole(job.title, job.department)))
     .sort((a,b) => b.postedAt.localeCompare(a.postedAt));

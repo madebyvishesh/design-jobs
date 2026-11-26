@@ -5,7 +5,7 @@
  * Usage: npx tsx scripts/fetch-and-cache.ts
  * Required env: BLOB_READ_WRITE_TOKEN
  */
-import { setCachedJobs } from '../lib/jobsCache';
+import { getCachedJobs, setCachedJobs } from '../lib/jobsCache';
 import { fetchAllDesignJobs } from '../lib/fetchAllJobs';
 
 async function main() {
@@ -18,7 +18,9 @@ async function main() {
   console.log(`[${new Date().toISOString()}] Fetching all design jobs...`);
   const start = Date.now();
 
-  const { aiJobs, allJobs, report } = await fetchAllDesignJobs();
+  const prior = await getCachedJobs();
+  const previous = prior ? [...prior.aiJobs, ...prior.allJobs] : [];
+  const { aiJobs, allJobs, report } = await fetchAllDesignJobs(previous);
   const total = aiJobs.length + allJobs.length;
   const elapsed = ((Date.now() - start) / 1000).toFixed(1);
 

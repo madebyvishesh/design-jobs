@@ -9,6 +9,7 @@ export interface BoardReport {
   reason?: string;
   feed?: string;
   indexed?: number;
+  unverifiedUrls?: string[];
 }
 
 export interface BoardListings {
@@ -16,6 +17,7 @@ export interface BoardListings {
   feed: string;
   indexed: number;
   incomplete?: string;
+  unverifiedUrls?: string[];
 }
 
 export class BoardMissing extends Error {}
@@ -85,7 +87,7 @@ export async function collectBoards<T>(
         const jobs = Array.isArray(result) ? result : result.jobs;
         results[i] = jobs.map(job => ({ ...job, boardKey: source + ':' + meta.board }));
         report.push({ ...meta, status: feed?.incomplete ? 'partial' : 'ok', received: jobs.length,
-          feed: feed?.feed, indexed: feed?.indexed, reason: feed?.incomplete });
+          feed: feed?.feed, indexed: feed?.indexed, reason: feed?.incomplete, unverifiedUrls: feed?.unverifiedUrls });
       } catch (error) {
         report.push({ ...meta, status: error instanceof BoardMissing ? 'missing' : 'unavailable',
           received: 0, reason: error instanceof Error ? error.message.slice(0,120) : 'Request failed' });

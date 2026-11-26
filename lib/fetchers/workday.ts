@@ -1,3 +1,4 @@
+import type { Job } from '../../types/job';
 import { collectBoards, type BoardReport } from '../boardFetch';
 import { fetchEmployerListings } from './employerSitemap';
 
@@ -30,7 +31,7 @@ const WORKDAY_COMPANIES: WorkdayCompany[] = [
   { tenant: 'cvshealth', dc: 'wd1', site: 'CVS_Health_Careers', name: 'CVS Health', domain: 'cvshealth.com' },
 ];
 
-export function fetchAllWorkdayJobs(report: BoardReport[] = []) {
+export function fetchAllWorkdayJobs(report: BoardReport[] = [], previous: Job[] = []) {
   return collectBoards('workday', WORKDAY_COMPANIES, c => ({ board: c.tenant, domain: c.domain }),
-    fetchEmployerListings, report, 4);
+    company => fetchEmployerListings(company, previous.filter(job => job.boardKey === 'workday:' + company.tenant)), report, 4);
 }

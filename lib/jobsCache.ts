@@ -22,17 +22,19 @@ export async function getCachedJobs(): Promise<JobsPayload | null> {
   const publicUrl = process.env.JOBS_SNAPSHOT_URL || (!isBlobConfigured()
     ? 'https://cwclyptedz0xvtaf.public.blob.vercel-storage.com/design-jobs-cache.json'
     : undefined);
-  const signal = AbortSignal.timeout(4000);
+  const signal = AbortSignal.timeout(8000);
   try {
     let response: Response;
     if (publicUrl) {
       response = await fetch(publicUrl, { cache: 'no-store', signal });
       if (!response.ok) return null;
     } else {
-      const { get } = await import('@vercel/blob');
-      const blob = await get(BLOB_FILENAME, { access: 'public', abortSignal: signal });
-      if (!blob?.stream) return null;
-      response = new Response(blob.stream);
+      const { head } = await import('@vercel/blob');
+      const blob = await head(BLOB_FILENAME, { abortSignal: signal });
+      const url = new URL(blob.url);
+      url.searchParams.set('version', blob.etag);
+      response = await fetch(url, { cache: 'no-store', signal });
+      if (!response.ok) return null;
     }
     const snapshot: JobsPayload = await response.json();
     return Array.isArray(snapshot?.aiJobs) && Array.isArray(snapshot.allJobs) &&

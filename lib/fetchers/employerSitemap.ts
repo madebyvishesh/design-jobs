@@ -126,7 +126,8 @@ export function readPosting(html: string, url: URL, company: WorkdayCompany, now
   const id = typeof identifier === 'number' || typeof identifier === 'string' && identifier ? identifier : alternate;
   const places = values(posting.jobLocation).map(place => {
     const address = record(record(place).address);
-    return [name(address.addressLocality), name(address.addressRegion), name(address.addressCountry)].filter(Boolean).join(', ') || name(place);
+    const parts = [name(address.addressLocality), name(address.addressRegion), name(address.addressCountry)].flatMap(part => part.split(',')).map(part => part.trim()).filter(Boolean);
+    return Array.from(new Set(parts)).join(', ') || name(place);
   }).filter(Boolean);
   const remote = values(posting.jobLocationType).includes('TELECOMMUTE');
   const regions = values(posting.applicantLocationRequirements).map(name).filter(Boolean);
@@ -142,14 +143,18 @@ export function readPosting(html: string, url: URL, company: WorkdayCompany, now
   };
 }
 
-export async function fetchEmployerListings(company: WorkdayCompany): Promise<BoardListings> {
+export async function fetchEmployerListings(company: WorkdayCompany, previous: Job[] = []): Promise<BoardListings> {
   const boardUrl = 'https://' + company.tenant + '.' + company.dc + '.myworkdayjobs.com/' + company.site + '/siteMap.xml';
   const feed = new URL(indexes[company.tenant] || boardUrl);
   const addresses = await postingUrls(feed);
   // These publishers include the title in their canonical job paths. Confirm every candidate against its JobPosting.
-  const candidates = addresses.filter(address => isDesignRole(decodeURIComponent(new URL(address).pathname).replace(/[-_/]+/g, ' ')));
+  const matched = addresses.filter(address => isDesignRole(decodeURIComponent(new URL(address).pathname).replace(/[-_/]+/g, ' ')));
+  // Some Workday indexes rotate through a limited window. Recheck previously published links for these employers.
+  const previousUrls = indexes[company.tenant] ? [] : previous.map(job => job.url).filter(address => URL.canParse(address) && new URL(address).origin === feed.origin);
+  const candidates = Array.from(new Set([...matched, ...previousUrls]));
+  const unresolved: string[] = [];
   const jobs: Job[] = [];
-  let cursor = 0, failed = 0, lastError = '', stopped = false;
+  let cursor = 0, lastError = '', stopped = false;
   async function readJobs() {
     while (!stopped && cursor < candidates.length) {
       const url = new URL(candidates[cursor++]);
@@ -159,14 +164,15 @@ export async function fetchEmployerListings(company: WorkdayCompany): Promise<Bo
         if (job) jobs.push(job);
       } catch (error) {
         if (error instanceof FeedError && [404,410].includes(error.status)) continue;
-        failed++;
+        unresolved.push(url.href);
         lastError = error instanceof Error ? error.message : 'Unknown error';
         if (error instanceof FeedError && [401,403,429].includes(error.status)) stopped = true;
       }
     }
   }
   await Promise.all([readJobs(), readJobs()]);
-  const unresolved = failed + candidates.length - cursor;
+  unresolved.push(...candidates.slice(cursor));
   return { jobs, feed: feed.href, indexed: addresses.length,
-    incomplete: unresolved ? unresolved + ' candidate page(s) unavailable: ' + lastError : undefined };
+    unverifiedUrls: unresolved.length ? unresolved : undefined,
+    incomplete: unresolved.length ? unresolved.length + ' candidate page(s) unavailable: ' + lastError : undefined };
 }
