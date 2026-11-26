@@ -104,7 +104,10 @@ function JobFacts({ job }: { job: Job }) {
   return <dl className="detail-facts">{facts.map(({ label, value }) => (
     <div key={label} className={label === 'Location' ? 'detail-full-location' : undefined}
       data-wide={(label === 'Location' || label === 'Listed pay') && value.length > 48 || undefined}>
-      <dt>{label}</dt><dd className={label === 'Listed pay' ? 'listed-pay' : undefined}>{value}</dd>
+      <dt>{label}{label === 'Location' && job.isRemote && (
+        <span className="mobile-detail-remote remote-label">{remoteBadge(job.location)}</span>
+      )}</dt>
+      <dd className={label === 'Listed pay' ? 'listed-pay' : undefined}>{value}</dd>
     </div>
   ))}</dl>;
 }

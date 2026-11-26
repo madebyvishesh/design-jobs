@@ -384,6 +384,7 @@ html.theme-reveal::view-transition { pointer-events: none; }
 .listings-table .listing-row[data-expanded]::after {display:none;}
 .job-detail-panel {grid-area:details;min-width:0;display:grid;gap:14px;padding-top:16px;font-size:14px;overflow-wrap:anywhere;}
 .detail-facts {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px 24px;}
+.mobile-detail-remote { display: none; }
 .detail-facts > [data-wide] {grid-column:span 2;}
 .detail-facts dt,.detail-meta,.private-note small {font-size:12px;color:var(--subtle);}
 .detail-facts dd {margin-top:3px;line-height:1.45;white-space:pre-line;}
@@ -410,31 +411,31 @@ html.theme-reveal::view-transition { pointer-events: none; }
 @media (min-width:680px) and (max-width:900px) { .detail-facts {grid-template-columns:repeat(2,minmax(0,1fr));} }
 @media (max-width:679px) {
   .listings-table[data-details] .listing-row[data-expanded] {
-    --summary-inset: 12px;
-    --employer-indent: 28px;
-    grid-template-columns: minmax(0, 1fr) 44px;
-    grid-template-areas: "title save" "company collapse" "details details";
-    gap: 0 6px;
+    --summary-inset: 14px;
+    grid-template-columns: minmax(0, 1fr) 44px 44px;
+    grid-template-areas: "title title title" "company save collapse" "details details details";
+    gap: 0;
   }
   .listing-row[data-expanded] .action-cell,
   .listing-row[data-expanded] .action-cell > div { display: contents; }
   .listing-row[data-expanded] .save-job { grid-area: save; }
   .listing-row[data-expanded] .row-disclosure { grid-area: collapse; align-self: start; }
   .listings-table[data-details] .listing-row[data-expanded] .action-cell a { display: none; }
-  .listing-row[data-expanded] .role-title { min-height: 44px; align-items: center; padding: 2px 0; }
-  .listing-row[data-expanded] .company-cell {
-    align-self: start;
-    gap: 0 8px;
-    padding-inline-start: var(--employer-indent);
+  .listing-row[data-expanded] .role-title {
+    min-height: 44px;
+    padding: 0;
+    font-size: 20px;
+    line-height: 1.22;
+    letter-spacing: -.03em;
   }
-  .listing-row[data-expanded] .company-cell a { position: relative; }
-  .listing-row[data-expanded] .company-avatar {
-    position: absolute;
-    inset-inline-start: calc(0px - var(--employer-indent));
-  }
-  .listing-row[data-expanded] .company-cell > .remote-label { white-space: normal; }
-  .job-detail-panel {padding-top:10px;gap:10px;}
-  .detail-facts {grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 16px;}
+  .listing-row[data-expanded] .role-title [data-clip] { text-wrap: balance; }
+  .listing-row[data-expanded] .company-cell > .remote-label { display: none; }
+  .job-detail-panel { padding-top: 5px; gap: 10px; }
+  .detail-facts { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px 14px; }
+  .detail-facts .detail-full-location,
+  .detail-facts > div:has(.listed-pay) { grid-column: 1 / -1; }
+  .detail-full-location dt { display: flex; align-items: center; flex-wrap: wrap; gap: 3px 6px; }
+  .detail-full-location .mobile-detail-remote { display: inline-flex; white-space: normal; }
   .detail-bottom {display:grid;grid-template-columns:minmax(0,1fr);gap:4px;}
   .detail-actions {justify-content:flex-start;}
   .detail-more {margin-inline-start:auto;}
