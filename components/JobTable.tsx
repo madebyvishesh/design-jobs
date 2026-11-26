@@ -62,6 +62,9 @@ function CompanyAvatar({ job }: { job: Job }) {
     <span className="company-avatar" aria-hidden="true">
       {job.company.charAt(0).toUpperCase()}
       {src && <img key={src} src={src} width={24} height={24} alt="" loading="lazy" decoding="async"
+        ref={image => {
+          if (image?.complete && !image.naturalWidth) setAttempt(attempt + 1);
+        }}
         onError={() => setAttempt(attempt + 1)} />}
     </span>
   );
@@ -452,10 +455,10 @@ export default function JobTable({ jobs, fetchedAt, checked, initial }: Props) {
                   </div>
                 </div>
                 <div role="cell" className="action-cell"><div>
+                  {detail && <button type="button" className="copy-job" title={copiedId === job.id ? 'Link copied' : 'Copy job link'} aria-label={'Copy link to ' + job.title} onClick={event => copy(job, event.currentTarget)}>{copiedId === job.id ? <Check size={15} /> : <Copy size={15} />}</button>}
                   <button type="button" className="save-job" title={saved.has(job.id) ? 'Remove from saved roles' : 'Save role'} aria-label={'Save ' + job.title + ' at ' + job.company} aria-pressed={saved.has(job.id)} onClick={event => toggleSaved(job, event.currentTarget)}>
                     {saved.has(job.id) ? <BookmarkCheck size={17} /> : <Bookmark size={17} />}
                   </button>
-                  {detail && <button type="button" className="copy-job" title={copiedId === job.id ? 'Link copied' : 'Copy job link'} aria-label={'Copy link to ' + job.title} onClick={event => copy(job, event.currentTarget)}>{copiedId === job.id ? <Check size={15} /> : <Copy size={15} />}</button>}
                   <a href={job.url} target="_blank" rel="noopener noreferrer" aria-label={'Apply for ' + job.title + ' at ' + job.company}><span className="apply-label">Apply <ArrowUpRight size={14} aria-hidden="true" /></span></a>
                 </div></div>
               </div>)}</div>
