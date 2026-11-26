@@ -409,11 +409,30 @@ html.theme-reveal::view-transition { pointer-events: none; }
 @media (min-width:680px) and (max-width:1079px) { .job-detail-panel {padding-top:12px;} }
 @media (min-width:680px) and (max-width:900px) { .detail-facts {grid-template-columns:repeat(2,minmax(0,1fr));} }
 @media (max-width:679px) {
-  .listings-table[data-details] .listing-row[data-expanded] {--summary-inset:12px;grid-template-columns:minmax(0,1fr) 44px;gap:0 6px;}
-  .listing-row[data-expanded] .company-cell {align-self:start;}
-  .listing-row[data-expanded] .action-cell > div {flex-direction:column;gap:0;}
-  .listings-table[data-details] .listing-row[data-expanded] .action-cell a {display:none;}
-  .listing-row[data-expanded] .role-title {min-height:44px;align-items:flex-end;padding-bottom:6px;}
+  .listings-table[data-details] .listing-row[data-expanded] {
+    --summary-inset: 12px;
+    --employer-indent: 28px;
+    grid-template-columns: minmax(0, 1fr) 44px;
+    grid-template-areas: "title save" "company collapse" "details details";
+    gap: 0 6px;
+  }
+  .listing-row[data-expanded] .action-cell,
+  .listing-row[data-expanded] .action-cell > div { display: contents; }
+  .listing-row[data-expanded] .save-job { grid-area: save; }
+  .listing-row[data-expanded] .row-disclosure { grid-area: collapse; align-self: start; }
+  .listings-table[data-details] .listing-row[data-expanded] .action-cell a { display: none; }
+  .listing-row[data-expanded] .role-title { min-height: 44px; align-items: center; padding: 2px 0; }
+  .listing-row[data-expanded] .company-cell {
+    align-self: start;
+    gap: 0 8px;
+    padding-inline-start: var(--employer-indent);
+  }
+  .listing-row[data-expanded] .company-cell a { position: relative; }
+  .listing-row[data-expanded] .company-avatar {
+    position: absolute;
+    inset-inline-start: calc(0px - var(--employer-indent));
+  }
+  .listing-row[data-expanded] .company-cell > .remote-label { white-space: normal; }
   .job-detail-panel {padding-top:10px;gap:10px;}
   .detail-facts {grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 16px;}
   .detail-bottom {display:grid;grid-template-columns:minmax(0,1fr);gap:4px;}
