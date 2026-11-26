@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpRight, Bookmark, BookmarkCheck, Check, ChevronDown, Copy, Globe2, MapPin, Search, SlidersHorizontal, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpRight, Bookmark, BookmarkCheck, Check, ChevronDown, Copy, Globe2, Search, SlidersHorizontal, X } from 'lucide-react';
 import BoardHeader from './BoardHeader';
 import type { Job, AtsSource } from '@/types/job';
 
@@ -25,7 +25,7 @@ function JobLocation({ job, query }: { job: Job; query: string }) {
   return (
     <div className="listing-location">
       {job.isRemote && <span className="remote-label"><Globe2 size={13} aria-hidden="true" />Remote</span>}
-      {location ? <span>{!job.isRemote && <MapPin className="mobile-location-icon" size={12} aria-hidden="true" />}<HighlightText text={location} query={query} /></span> : !job.isRemote && 'Location unavailable'}
+      {location ? <span><HighlightText text={location} query={query} /></span> : !job.isRemote && 'Location unavailable'}
     </div>
   );
 }
@@ -197,11 +197,6 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
     setSortKey(key); setAscending(asc); setPage(0);
   }
 
-  const overview = useMemo(() => ({
-    companies: new Set(jobs.map(job => job.company)).size,
-    remote: jobs.filter(job => job.isRemote).length,
-  }), [jobs]);
-
   const savedCount = jobs.filter(job => saved.has(job.id)).length;
   const matches = useMemo(() => {
     const filtered = jobs.filter(job => {
@@ -223,6 +218,11 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
       return ascending ? order : -order;
     });
   }, [jobs, scope, saved, remote, source, week, fetchedAt, query, sortKey, ascending]);
+  const overview = useMemo(() => ({
+    companies: new Set(matches.map(job => job.company)).size,
+    remote: matches.filter(job => job.isRemote).length,
+  }), [matches]);
+
   const pages = Math.max(1, Math.ceil(matches.length / PAGE_SIZE));
   const current = Math.min(range.last, pages - 1);
   const firstPage = Math.min(range.first, current);
@@ -266,7 +266,7 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
   const customSort = sortKey !== 'postedAt' || ascending;
   return (
     <div className="job-board">
-      <BoardHeader overview={overview}>
+      <BoardHeader>
         <div className="board-toolbar">
           <div className="board-search">
             <Search size={20} aria-hidden="true" />
@@ -327,7 +327,11 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
               </div>
               <div className="results-summary">
                 <h2 tabIndex={-1} ref={results} aria-live="polite" aria-atomic="true">
-                  {matches.length ? (start + 1) + '–' + end + ' of ' + matches.length + ' roles' : '0 matching roles'}
+                  <span>{matches.length ? (start + 1) + '–' + end + ' of ' + matches.length + (matches.length === 1 ? ' role' : ' roles') : '0 matching roles'}</span>
+                  {matches.length > 0 && <>
+                    <span>{overview.companies} {overview.companies === 1 ? 'company' : 'companies'}</span>
+                    <span>{overview.remote} remote</span>
+                  </>}
                 </h2>
                 {customSort && <span className="sort-summary">{sortLabel(sortKey, ascending)}</span>}
                 {source !== 'all' && <button type="button" className="filter-chip" aria-label={'Remove ' + sources[source as AtsSource] + ' filter'}
@@ -345,15 +349,18 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
                 {detail && <div role="columnheader">Job portal</div>}
                 <div role="columnheader"><span className="sr-only">Actions</span></div>
               </div>
+              <div className="tablet-guide" aria-hidden="true">
+                <span>Role and company</span><span>Location and date</span>
+              </div>
               <div role="rowgroup">{visible.map(job => <div className="listing-row" role="row" key={job.id}>
                 <div role="cell" className="role-cell">
-                  <a id={'listing-' + job.id} href={job.url} target="_blank" rel="noopener noreferrer" className="role-title"><HighlightText text={job.title} query={query} /></a>
+                  <a id={'listing-' + job.id} href={job.url} target="_blank" rel="noopener noreferrer" className="role-title"><span><HighlightText text={job.title} query={query} /><span className="title-arrow" aria-hidden="true">{'\u2060'}<ArrowUpRight size={13} /></span></span></a>
                   {detail && job.department && <div className="role-detail">{job.department}</div>}
                 </div>
                 <div className="listing-meta" role="presentation">
                   <div role="cell" className="company-cell"><a href={job.companyDomain ? 'https://' + job.companyDomain : job.url} target="_blank" rel="noopener noreferrer">
                     <CompanyAvatar key={job.logoUrl || job.companyDomain} job={job} /><span><HighlightText text={job.company} query={query} />{detail && job.batch && <small>{job.batch}</small>}</span>
-                  </a></div>
+                  </a>{detail && job.department && <span className="compact-department">{job.department}</span>}</div>
                   <div role="cell" className="location-cell"><JobLocation job={job} query={query} /></div>
                 </div>
                 <div className="listing-foot" role="presentation">
@@ -369,10 +376,10 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
                     </div>}
                   </div>
                   <div role="cell" className="action-cell"><div>
-                    {detail && <button type="button" title={copiedId === job.id ? 'Link copied' : 'Copy job link'} aria-label={'Copy link to ' + job.title} onClick={event => copy(job, event.currentTarget)}>{copiedId === job.id ? <Check size={15} /> : <Copy size={15} />}</button>}
                     <button type="button" className="save-job" title={saved.has(job.id) ? 'Remove from saved roles' : 'Save role'} aria-label={'Save ' + job.title + ' at ' + job.company} aria-pressed={saved.has(job.id)} onClick={event => toggleSaved(job, event.currentTarget)}>
                       {saved.has(job.id) ? <BookmarkCheck size={17} /> : <Bookmark size={17} />}
                     </button>
+                    {detail && <button type="button" className="copy-job" title={copiedId === job.id ? 'Link copied' : 'Copy job link'} aria-label={'Copy link to ' + job.title} onClick={event => copy(job, event.currentTarget)}>{copiedId === job.id ? <Check size={15} /> : <Copy size={15} />}</button>}
                     <a href={job.url} target="_blank" rel="noopener noreferrer" aria-label={'Apply for ' + job.title + ' at ' + job.company}><span className="apply-label">Apply <ArrowUpRight size={14} aria-hidden="true" /></span></a>
                   </div></div>
                 </div>
