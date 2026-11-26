@@ -32,17 +32,24 @@ export function remoteEligibility(location: string) {
   const countries = new Set<string>();
   const unspecified = /^(?:location unspecified|unspecified|remote location|remote)?$/i.test(location.trim());
   let worldwide = false;
+  if (/\b(?:except|excluding|outside|not)\b/i.test(location)) return {worldwide,countries,unspecified};
   // Keep cities and office alternatives outside explicitly marked remote clauses.
   const parts = location.trim().replace(/\b(?:work\s+(?:from|at)\s+home|WFH)\b/gi,'Remote').replace(/^remote\s*·\s*/i, 'Remote ').split(/\s*[·;|]\s*|\s+\/\s+/);
   const marked = parts.filter(part => /\bremote\b/i.test(part));
   for (const part of marked.length ? marked : [location]) {
-    if (/\b(?:except|excluding|outside|not|notwithstanding)\b/i.test(part)) continue;
     const beforeRestriction = part.match(/^(.+?)\s*[-–]\s*remote\s*\([^)]+\)$/i);
     const text = (beforeRestriction?.[1] ?? part.match(/\bremote\s*\(([^)]+)\)\s*$/i)?.[1] ?? part)
       .replace(/^remote\b\s*[-:,–—]?\s*(?:in\s+|eligible\s+)?/i, '')
       .replace(/\s*[,–-]?\s*\(?remote\)?$/i,'').replace(/\s+locations?$/i,'').trim();
     if (/^(?:worldwide|global|anywhere(?: in the world)?)$/i.test(text)) { worldwide = true; continue; }
     const tokens = text.replace(/\bonly\b/gi,'').split(/\s+(?:and|or)\s+|[,&/;·|]/i).map(t=>t.trim()).filter(Boolean);
+    const last = tokens.at(-1) ?? '';
+    const state = tokens.at(-2)?.toLowerCase() ?? '';
+    if (marked.length && parseCountry(last,false).includes('US') &&
+        (usStates.has(state) || state === 'georgia' || state === 'district of columbia')) {
+      countries.add('US');
+      continue;
+    }
     const parsed = tokens.map(t => parseCountry(t, marked.length > 0));
     if (parsed.length && parsed.every(group => group.length)) {
       for (const group of parsed) for (const code of group) countries.add(code);
@@ -54,7 +61,10 @@ export function remoteEligibility(location: string) {
 export function remoteBadge(location: string) {
   const region = remoteEligibility(location);
   if (region.worldwide) return 'Remote · Worldwide';
-  if (!region.countries.size) return 'Remote · Region unclear';
+  if (!region.countries.size) {
+    const named = location.trim().match(/^(?:remote[\s(:–—-]*)?(EMEA|APAC|Americas|Europe|North America|South America|North\/South America)(?:\)|\s+remote)?$/i);
+    return named ? 'Remote · '+named[1] : 'Remote · Region unclear';
+  }
   if (region.countries.size === eu.length && eu.every(code=>region.countries.has(code))) return 'Remote · EU';
   const codes = Array.from(region.countries);
   return codes.length <= 2 ? 'Remote · ' + codes.join('/') : 'Remote · ' + codes.length + ' countries';

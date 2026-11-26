@@ -1,4 +1,6 @@
 import { listingKnownSince, sixMonthCutoff } from './listingAge';
+import { isDesignRole } from './filterJobs';
+import { normalizeListing } from './listingText';
 import { postingUrl } from './mergePostings';
 import type { JobsPayload } from './jobsCache';
 
@@ -44,7 +46,9 @@ export function withFirstSeen(next: JobsPayload, previous: JobsPayload | null): 
       const board = job.boardKey ? byBoard.get(job.boardKey) : undefined;
       if (job.boardKey ? !board : !domains.has(job.ats + ':' + job.companyDomain)) continue;
       if (board?.unverifiedUrls && !board.unverifiedUrls.includes(job.url)) continue;
-      (job.isAI ? aiJobs : allJobs).push({ ...remember(job, previous.fetchedAt), lastVerifiedAt: job.lastVerifiedAt ?? previous.fetchedAt });
+      const previousJob = normalizeListing(job);
+      if (!isDesignRole(previousJob.title, previousJob.department)) continue;
+      (job.isAI ? aiJobs : allJobs).push({ ...remember(previousJob, previous.fetchedAt), lastVerifiedAt: job.lastVerifiedAt ?? previous.fetchedAt });
       seen.add(job.id);
     }
   }

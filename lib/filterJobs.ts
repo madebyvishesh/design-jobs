@@ -50,7 +50,7 @@ const INCLUDE_KEYWORDS = [
 ];
 
 // Short abbreviations matched only as whole words
-const INCLUDE_WORD_KEYWORDS = ['ux', 'ui'];
+const INCLUDE_WORD_KEYWORDS = ['ux', 'ui', 'uxr', 'designops'];
 
 const EXCLUDE_KEYWORDS = [
   '3d designer', '3d artist', 'cgi', 'vfx artist',

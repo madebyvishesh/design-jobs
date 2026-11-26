@@ -16,7 +16,7 @@ export const fields = {
 export type DesignField = keyof typeof fields;
 const rules: [DesignField, RegExp][] = [
   ['product', /\bproduct design/],
-  ['research', /\b(?:ux|user|experience|design) research|\bresearch(?:er)?\b.*\b(?:ux|user experience|design)\b/],
+  ['research', /\buxr\b|\b(?:ux|user|experience|design) research|\bresearch(?:er)?\b.*\b(?:ux|user experience|design)\b/],
   ['brand', /\b(?:brand|visual|graphic|creative|marketing|communications?)\b|\bart director|\billustrat|\btypograph/],
   ['motion', /\bmotion\b|\banimat|\bstoryboard/],
   ['content', /\b(?:content|conversation|narrative) design|\b(?:ux|design) writ/],

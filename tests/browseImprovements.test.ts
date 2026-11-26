@@ -25,7 +25,7 @@ test('remote country selection isolates employer-marked remote places',()=>{
   for(const [loc,expected] of [
     ['Remote, Utah, United States of America · Remote, California, United States of America',['US']],
     ['Boston, MA; Remote - US; Remote  - CAN',['US','CA']],
-    ['Remote in California',['US']], ['Work at Home, Texas, United States',['US']], ['Germany · India',['DE','IN']], ['Remote (EU)',null],
+    ['Remote, Atlanta, Georgia, United States',['US']], ['Remote (Worldwide) · except India',[]], ['Remote in California',['US']], ['Work at Home, Texas, United States',['US']], ['Germany · India',['DE','IN']], ['Remote (EU)',null],
     ['San Francisco, CA / Remote (India)',['IN']], ['United States (Remote) · Toronto, Canada',['US']],
     ['Remote except US',[]],['Toronto, CA',[]],['CA',[]], ['Boston, MA; Remote',[]],
   ] as const) {
@@ -33,12 +33,14 @@ test('remote country selection isolates employer-marked remote places',()=>{
     if(expected) assert.deepEqual(Array.from(region.countries),expected,loc);
     else assert.equal(region.countries.size,27);
   }
+  assert.equal(remoteEligibility('Remote (Worldwide) · except India').worldwide,false);
+  assert.equal(remoteBadge('Remote - EMEA'), 'Remote · EMEA');
   assert.equal(remoteBadge('Remote'), 'Remote · Region unclear');
   assert.equal(remoteBadge('US remote'), 'Remote · US');
 });
 test('hardware engineering excluded while digital roles survive',()=>{
   for(const title of ['Advanced Packaging Design Engineering Team Lead','High-Speed SerDes Design Engineer','Semiconductor Design Engineer']) assert.equal(isDesignRole(title),false);
-  for(const title of ['Design Engineer, Brand & Marketing','Senior Packaging Designer','Design Technologist']) assert.equal(isDesignRole(title),true);
+  for(const title of ['Design Engineer, Brand & Marketing','Senior Packaging Designer','Senior UXR','DesignOps Lead','Design Technologist']) assert.equal(isDesignRole(title),true);
 });
 test('decodes display and search strings and keeps city-state pairs together',()=>{
   const job=normalizeListing(role('one',{location:'Bangalore, Karn&#x101;taka, IN · M&#252;nchen; Montr&eacute;al',title:'UX &amp; UI Designer'}));
@@ -56,4 +58,12 @@ test('recovery counts exactly the result of changing one filter, preserving othe
   assert.deepEqual(choice.change,{salary:false});
   const retained={...c,...choice.change};
   assert.deepEqual(selectedHits(browsePool(rows,retained,ctx),retained,ctx).hits.map(j=>j.job.id),['one']);
+});
+
+test('outage carryovers obey current role and text rules',async()=>{
+  const {withFirstSeen}=await import('../lib/firstSeen');
+  const prior={aiJobs:[],allJobs:[role('old',{title:'SerDes Design Engineer'}),role('current',{location:'Karn&#x101;taka'})],fetchedAt:now};
+  const next=withFirstSeen({aiJobs:[],allJobs:[],fetchedAt:now+1,report:[
+    {source:'ashby',board:'studio',domain:'studio.example',status:'unavailable',received:0}]},prior);
+  assert.deepEqual(next.allJobs.map(j=>[j.id,j.location]),[['current','Karnātaka']]);
 });
