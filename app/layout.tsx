@@ -4,9 +4,9 @@ import Script from "next/script";
 import "./globals.css";
 import "./board.css";
 
-const geist = localFont({
-  src: "./fonts/GeistVF.woff",
-  variable: "--font-geist",
+const inter = localFont({
+  src: "./fonts/InterVariable.woff2",
+  variable: "--font-inter",
   display: "swap",
   weight: "100 900",
 });
@@ -47,7 +47,7 @@ export default function RootLayout({
   `;
 
   return (
-    <html lang="en" className={geist.variable} suppressHydrationWarning>
+    <html lang="en" className={inter.variable} suppressHydrationWarning>
       <body className="antialiased">
         <Script id="theme-init" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: themeScript }} />
         {children}

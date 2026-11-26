@@ -94,14 +94,13 @@
 .listing-head button { display: flex; align-items: center; gap: 5px; min-height: 36px; }
 .listing-row { padding-block: 11px; min-height: 57px; border-radius: var(--panel); }
 .listing-row [role=cell],.listing-head [role=columnheader] { min-width: 0; overflow-wrap: anywhere; }
-.compact-column-name,.portal-caption { display: none; }
+.compact-column-name,.portal-caption,.place-pin { display: none; }
 .listing-place,.listing-attribution { display: contents; }
 .role-title { font-size: 16px; line-height: 1.35; letter-spacing: -.027em; font-weight: 540; text-wrap: pretty; }
 .company-cell a { max-width: 100%; display: inline-flex; align-items: center; gap: 8px; vertical-align: middle; }
 .company-cell a > span:last-child { min-width: 0; line-height: 1.4; }
 .company-avatar { flex: none; position: relative; display: inline-grid; place-items: center; width: 25px; height: 25px; border-radius: 6px; overflow: hidden; background: var(--soft); border: 1px solid var(--line); font-size: 11px; font-weight: 600; color: var(--subtle); }
-.company-avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: white; padding: 3px; opacity: 0; }
-.company-avatar img[data-loaded=true] { opacity: 1; }
+.company-avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: white; padding: 2px; }
 .role-detail,.company-cell small { display: block; margin-top: 3px; font-weight: 400; color: var(--subtle); font-size: 12px; }
 .location-cell,.date-cell { color: var(--subtle); line-height: 1.45; }
 .listing-location,.listing-portals { display: flex; align-items: center; flex-wrap: wrap; gap: 3px 7px; }
@@ -196,25 +195,28 @@
   .board-scopes button { padding-inline: var(--listing-inset); }
   .results-nav { display: block; padding-block: 5px 3px; }
   .results-summary { min-height: 29px; padding-inline: var(--listing-inset); }
-  .listings-table[data-details] .listing-row { position: relative; grid-template-columns: minmax(0,1fr) 44px; grid-template-areas: "role save" "company company" "location location"; align-items: start; gap: 0 8px; padding: 3px var(--listing-inset) 11px; border-radius: 0; }
+  .listings-table[data-details] .listing-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0 8px; padding: 5px var(--listing-inset); border-radius: 0; }
   .listing-row + .listing-row { border-top: 1px solid color-mix(in srgb, var(--line) 62%, transparent); }
-  .role-cell { grid-area: role; }
-  .role-title { display: inline-flex; align-items: center; min-height: 44px; gap: 5px; font-size: 17px; line-height: 1.3; }
+  .role-cell { flex: 1 1 calc(100% - 52px); }
+  .listing-row .role-title { display: inline-flex; align-items: flex-end; min-height: 44px; padding-block: 4px; font-size: 17px; line-height: 1.3; }
   .title-arrow { display: inline; color: var(--subtle); }
   .title-arrow svg { display: inline-block; margin-inline-start: 3px; vertical-align: baseline; }
-  .location-cell { grid-area: location; }
-  .company-cell,.location-cell { min-width: 0; }
-  .company-avatar { display: none; }
-  .company-cell { grid-area: company; font-weight: 500; }
-  .listing-location { gap: 5px; }
+  .save-job { order: 1; width: 44px; height: 44px; align-self: flex-start; }
+  .company-cell { order: 2; max-width: 100%; font-weight: 500; }
+  .company-cell a { gap: 6px; padding-block-end: 14px; }
+  .role-detail { display: block; margin-block: 0 3px; }
+  .compact-department { display: none; }
+  .company-avatar { width: 22px; height: 22px; border-radius: 5px; }
+  .location-cell { order: 3; flex: 1 1 max-content; max-width: 100%; align-self: flex-start; padding-block: 5px 8px; }
+  .listing-location { align-items: baseline; gap: 4px 5px; }
+  .place-pin { display: inline-block; margin-inline-end: 3px; vertical-align: -1px; }
   .listing-attribution,.action-cell a { display: none; }
   .action-cell,.action-cell > div { display: contents; }
-  .save-job { grid-area: save; width: 44px; height: 44px; justify-self: end; }
-  .listings-table[data-details=true] .listing-row { grid-template-columns: minmax(0,1fr) 44px 68px; grid-template-areas: "role role save" "company company company" "location location location" "date copy apply"; row-gap: 2px; }
+  .listings-table[data-details=true] .listing-row::after { content: ""; order: 4; flex-basis: 100%; }
   .listings-table[data-details=true] .title-arrow { display: none; }
-  .listings-table[data-details=true] .listing-attribution { grid-area: date; display: flex; align-self: center; align-items: baseline; flex-wrap: wrap; gap: 2px 8px; }
-  .listings-table[data-details=true] .action-cell a { display: inline-flex; justify-self: end; grid-area: apply; }
-  .copy-job { grid-area: copy; justify-self: start; }
+  .listings-table[data-details=true] .listing-attribution { order: 5; flex: 1 1 0; min-width: 0; display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 8px; }
+  .copy-job { order: 6; }
+  .listings-table[data-details=true] .action-cell a { order: 7; display: inline-flex; }
   .apply-label { font-size: 12px; }
   .portal-caption { display: inline; color: var(--subtle); }
   .pages-desktop { display: none; }
@@ -247,9 +249,20 @@
 }
 @media (prefers-reduced-motion:no-preference) {
   .theme-toggle svg { transition: transform 180ms cubic-bezier(.2,.8,.2,1), opacity 140ms ease-out; }
-  .board-options button,.board-pages button,.action-cell :is(a,button),.theme-toggle { transition: transform 120ms ease-out; }
-  .theme-toggle:active,.board-options button:active,.board-pages button:enabled:active,.action-cell :is(a,button):active { transform: scale(.98); }
+  .board-options button,.board-pages button,.action-cell :is(a,button) { transition: transform 120ms ease-out; }
+  .board-options button:active,.board-pages button:enabled:active,.action-cell :is(a,button):active { transform: scale(.98); }
 }
 @media (prefers-reduced-motion:reduce) {
   .board-shell *, .board-shell *::before, .board-shell *::after { animation: none !important; transition: none !important; }
+}
+
+html.theme-reveal::view-transition-group(root) { animation: none; }
+html.theme-reveal::view-transition-old(root),html.theme-reveal::view-transition-new(root) { mix-blend-mode: normal; animation: none; }
+html.theme-reveal::view-transition { pointer-events: none; }
+@media (prefers-reduced-motion:no-preference) {
+  html.theme-reveal::view-transition-new(root) { animation: reveal-theme 480ms cubic-bezier(.22,.7,.22,1) both; }
+  @keyframes reveal-theme {
+    from { clip-path: circle(0 at var(--theme-x) var(--theme-y)); }
+    to { clip-path: circle(var(--theme-radius) at var(--theme-x) var(--theme-y)); }
+  }
 }

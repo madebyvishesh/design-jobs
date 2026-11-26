@@ -59,7 +59,7 @@ const LEVER_COMPANIES: Array<{ slug: string; name: string; domain: string; batch
   // AI / Tech
   { slug: 'runway-ml', name: 'Runway', domain: 'runwayml.com' },
   { slug: 'synthesia', name: 'Synthesia', domain: 'synthesia.io' },
-  { slug: 'doji', name: 'Doji', domain: 'doji.art' },
+  { slug: 'doji', name: 'Doji', domain: 'doji.com' },
   { slug: 'typeface', name: 'Typeface', domain: 'typeface.ai' },
   { slug: 'noise-labs', name: 'Noise Labs', domain: 'noise.xyz' },
   { slug: 'sierra-ai', name: 'Sierra AI', domain: 'sierra.ai' },
@@ -73,7 +73,7 @@ const LEVER_COMPANIES: Array<{ slug: string; name: string; domain: string; batch
   { slug: 'cresta', name: 'Cresta', domain: 'cresta.com', batch: 'S18' },
   { slug: 'gong', name: 'Gong', domain: 'gong.io' },
   { slug: 'hightouch', name: 'Hightouch', domain: 'hightouch.com' },
-  { slug: 'brainco', name: 'Brainco', domain: 'brainco.com' },
+  { slug: 'brainco', name: 'Brainco', domain: 'brain.co' },
   { slug: 'kaizen-gaming', name: 'Kaizen Gaming', domain: 'kaizengaming.com' },
   { slug: 'browserbase', name: 'Browserbase', domain: 'browserbase.com', batch: 'W24' },
   { slug: 'instrumentl', name: 'Instrumentl', domain: 'instrumentl.com' },

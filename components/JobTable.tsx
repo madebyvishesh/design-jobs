@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpRight, Bookmark, BookmarkCheck, Check, ChevronDown, Copy, Globe2, Search, SlidersHorizontal, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpRight, Bookmark, BookmarkCheck, Check, ChevronDown, Copy, Globe2, MapPin, Search, SlidersHorizontal, X } from 'lucide-react';
 import { columns, sources, scopes, readBrowseParams, writeBrowseParams, type SortKey, type Scope, type BrowseCriteria } from '@/lib/browseParams';
 import { searchTerms, indexJob, jobMatches, highlightWords } from '@/lib/jobSearch';
+import companyLogos from '@/lib/companyLogos.json';
 import BoardHeader from './BoardHeader';
 import type { Job, AtsSource } from '@/types/job';
 
@@ -24,7 +25,7 @@ function JobLocation({ job, terms }: { job: Job; terms: string[] }) {
   return (
     <div className="listing-location">
       {job.isRemote && <span className="remote-label"><Globe2 size={13} aria-hidden="true" />Remote</span>}
-      {location ? <span><HighlightText text={location} terms={terms} /></span> : !job.isRemote && 'Location unavailable'}
+      {location ? <span>{!job.isRemote && <MapPin size={12} className="place-pin" aria-hidden="true" />}<HighlightText text={location} terms={terms} /></span> : !job.isRemote && 'Location unavailable'}
     </div>
   );
 }
@@ -46,14 +47,22 @@ function HighlightText({ text, terms }: { text: string; terms: string[] }) {
   )}</>;
 }
 
+const localLogos: Record<string, string> = companyLogos;
+
 function CompanyAvatar({ job }: { job: Job }) {
-  const [loaded, setLoaded] = useState(false);
-  const src = job.logoUrl || (job.companyDomain && `https://www.google.com/s2/favicons?domain=${job.companyDomain}&sz=64`);
+  const local = localLogos[job.companyDomain?.toLowerCase() || job.logoUrl || ''];
+  const candidates = [
+    local && '/company-logos/' + local,
+    job.logoUrl,
+    job.companyDomain && 'https://www.google.com/s2/favicons?sz=64&domain=' + encodeURIComponent(job.companyDomain),
+  ].filter(Boolean);
+  const [attempt, setAttempt] = useState(0);
+  const src = candidates[attempt];
   return (
     <span className="company-avatar" aria-hidden="true">
       {job.company.charAt(0).toUpperCase()}
-      {src && <img src={src} width={20} height={20} alt="" loading="lazy"
-        data-loaded={loaded} onLoad={() => setLoaded(true)} onError={() => setLoaded(false)} />}
+      {src && <img key={src} src={src} width={24} height={24} alt="" loading="lazy" decoding="async"
+        onError={() => setAttempt(attempt + 1)} />}
     </span>
   );
 }
@@ -334,7 +343,7 @@ export default function JobTable({ jobs, fetchedAt, checked, initial }: Props) {
         <div className="board-toolbar">
           <div className="board-search">
             <Search size={20} aria-hidden="true" />
-            <input ref={input} id="job-search" type="search" aria-label="Search jobs by role, company or location" placeholder="Search jobs"
+            <input ref={input} id="job-search" type="search" enterKeyHint="search" autoCapitalize="none" autoCorrect="off" spellCheck={false} aria-label="Search jobs by role, company or location" placeholder="Search jobs"
               value={search} onChange={e => { setSearch(e.target.value); setPage(0); }} />
             {search ? <button type="button" aria-label="Clear search" onClick={() => { setSearch(''); setPage(0); input.current?.focus(); }}><X size={17} /></button> : <kbd aria-hidden="true">/</kbd>}
           </div>
