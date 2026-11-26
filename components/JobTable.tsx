@@ -58,7 +58,7 @@ function HighlightText({ text, query }: { text: string; query: string }) {
   while (index !== -1) {
     if (index > cursor) parts.push(value.slice(cursor, index));
     parts.push(
-      <mark key={`${index}-${target}`} className="radius-chip bg-[hsl(var(--accent-lime)/0.28)] text-inherit">
+      <mark key={`${index}-${target}`} className="search-match">
         {value.slice(index, index + target.length)}
       </mark>
     );
@@ -275,8 +275,8 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
             {search ? <button type="button" aria-label="Clear search" onClick={() => { setSearch(''); setPage(0); input.current?.focus(); }}><X size={17} /></button> : <kbd aria-hidden="true">/</kbd>}
           </div>
           <div className="board-options">
-            <button type="button" className="board-control" ref={filterTrigger} aria-label={week || source !== 'all' ? `Filters, ${Number(week) + Number(source !== 'all')} active` : 'Filters'} aria-expanded={filtersOpen} aria-controls="board-filters" onClick={() => setFiltersOpen(!filtersOpen)}>
-              <SlidersHorizontal size={16} aria-hidden="true" />Filters{(week || source !== 'all') && <span className="filter-count" aria-hidden="true">{Number(week) + Number(source !== 'all')}</span>}
+            <button type="button" className="board-control" ref={filterTrigger} aria-label={week || source !== 'all' ? `Filters, ${Number(week) + Number(source !== 'all')} active` : 'Filters'} aria-expanded={filtersOpen} title="Filters" aria-controls="board-filters" onClick={() => setFiltersOpen(!filtersOpen)}>
+              <SlidersHorizontal size={16} aria-hidden="true" /><span className="filter-label">Filters</span>{(week || source !== 'all') && <span className="filter-count" aria-hidden="true">{Number(week) + Number(source !== 'all')}</span>}
             </button>
           </div>
         </div>
@@ -346,17 +346,15 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
                 <div role="columnheader"><span className="sr-only">Actions</span></div>
               </div>
               <div role="rowgroup">{visible.map(job => <div className="listing-row" role="row" key={job.id}>
-                <div className="listing-identity" role="presentation">
-                  <div role="cell" className="role-cell">
-                    <a id={'listing-' + job.id} href={job.url} target="_blank" rel="noopener noreferrer" className="role-title"><HighlightText text={job.title} query={query} /></a>
-                    {detail && job.department && <div className="role-detail">{job.department}</div>}
-                  </div>
+                <div role="cell" className="role-cell">
+                  <a id={'listing-' + job.id} href={job.url} target="_blank" rel="noopener noreferrer" className="role-title"><HighlightText text={job.title} query={query} /></a>
+                  {detail && job.department && <div className="role-detail">{job.department}</div>}
+                </div>
+                <div className="listing-meta" role="presentation">
                   <div role="cell" className="company-cell"><a href={job.companyDomain ? 'https://' + job.companyDomain : job.url} target="_blank" rel="noopener noreferrer">
                     <CompanyAvatar key={job.logoUrl || job.companyDomain} job={job} /><span><HighlightText text={job.company} query={query} />{detail && job.batch && <small>{job.batch}</small>}</span>
                   </a></div>
-                </div>
-                <div role="cell" className="location-cell">
-                  <JobLocation job={job} query={query} />
+                  <div role="cell" className="location-cell"><JobLocation job={job} query={query} /></div>
                 </div>
                 <div className="listing-foot" role="presentation">
                   <div className="listing-attribution" role="presentation">
@@ -375,7 +373,7 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
                     <button type="button" className="save-job" title={saved.has(job.id) ? 'Remove from saved roles' : 'Save role'} aria-label={'Save ' + job.title + ' at ' + job.company} aria-pressed={saved.has(job.id)} onClick={event => toggleSaved(job, event.currentTarget)}>
                       {saved.has(job.id) ? <BookmarkCheck size={17} /> : <Bookmark size={17} />}
                     </button>
-                    <a href={job.url} target="_blank" rel="noopener noreferrer" aria-label={'Apply for ' + job.title + ' at ' + job.company}>Apply <ArrowUpRight size={14} aria-hidden="true" /></a>
+                    <a href={job.url} target="_blank" rel="noopener noreferrer" aria-label={'Apply for ' + job.title + ' at ' + job.company}><span className="apply-label">Apply <ArrowUpRight size={14} aria-hidden="true" /></span></a>
                   </div></div>
                 </div>
               </div>)}</div>

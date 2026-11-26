@@ -26,9 +26,7 @@
     --ease-out-cubic: cubic-bezier(0.215, 0.61, 0.355, 1);
     --ease-out-quart: cubic-bezier(0.165, 0.84, 0.44, 1);
     --ease-in-out-cubic: cubic-bezier(0.645, 0.045, 0.355, 1);
-    --theme-wipe-x: 100vw;
-    --theme-wipe-y: 0px;
-    --theme-wipe-radius: 1600px;
+
   }
 
   .dark {
@@ -56,70 +54,9 @@
   }
 
   ::selection {
-    background: hsl(var(--accent-lime) / 0.35);
+    background: hsl(var(--foreground) / 0.18);
   }
 
-  html.theme-fallback-changing *,
-  html.theme-fallback-changing *::before,
-  html.theme-fallback-changing *::after {
-    transition:
-      background-color 180ms ease,
-      border-color 180ms ease,
-      color 180ms ease,
-      fill 180ms ease,
-      stroke 180ms ease,
-      box-shadow 180ms ease !important;
-  }
-
-  html.theme-changing.theme-wipe-active *,
-  html.theme-changing.theme-wipe-active *::before,
-  html.theme-changing.theme-wipe-active *::after {
-    transition: none !important;
-  }
-
-  html.theme-changing .theme-sun-layer,
-  html.theme-changing .theme-moon-layer,
-  html.theme-fallback-changing .theme-sun-layer,
-  html.theme-fallback-changing .theme-moon-layer {
-    transition:
-      opacity 170ms ease,
-      transform 240ms var(--ease-in-out-cubic) !important;
-  }
-}
-
-@property --theme-wipe-current-radius {
-  syntax: "<length>";
-  inherits: false;
-  initial-value: 0px;
-}
-
-::view-transition-old(root),
-::view-transition-new(root) {
-  animation-duration: 780ms;
-  animation-timing-function: cubic-bezier(0.19, 1, 0.22, 1);
-  mix-blend-mode: normal;
-}
-
-::view-transition-old(root) {
-  animation-name: theme-wipe-still;
-}
-
-::view-transition-new(root) {
-  animation-name: theme-wipe-reveal;
-  -webkit-mask-image: radial-gradient(
-    circle at var(--theme-wipe-x) var(--theme-wipe-y),
-    #000 0 var(--theme-wipe-current-radius),
-    rgba(0, 0, 0, 0.72) calc(var(--theme-wipe-current-radius) + 34px),
-    rgba(0, 0, 0, 0.32) calc(var(--theme-wipe-current-radius) + 78px),
-    transparent calc(var(--theme-wipe-current-radius) + 120px)
-  );
-  mask-image: radial-gradient(
-    circle at var(--theme-wipe-x) var(--theme-wipe-y),
-    #000 0 var(--theme-wipe-current-radius),
-    rgba(0, 0, 0, 0.72) calc(var(--theme-wipe-current-radius) + 34px),
-    rgba(0, 0, 0, 0.32) calc(var(--theme-wipe-current-radius) + 78px),
-    transparent calc(var(--theme-wipe-current-radius) + 120px)
-  );
 }
 
 @layer utilities {
@@ -174,68 +111,6 @@
 }
 .btn-classic-primary:hover { opacity: 0.9; }
 .btn-classic-primary:active { transform: scale(0.98); }
-
-.theme-toggle {
-  align-items: center;
-  background: hsl(var(--card) / 0.92);
-  border: 1px solid hsl(var(--border));
-  border-radius: var(--radius-control);
-  color: hsl(var(--foreground));
-  display: inline-flex;
-  height: 34px;
-  justify-content: center;
-  width: 34px;
-  box-shadow: 0 8px 22px hsl(225 24% 10% / 0.06);
-  transition:
-    background-color 150ms ease,
-    border-color 150ms ease,
-    color 150ms ease,
-    transform 140ms ease;
-}
-
-.theme-toggle:hover {
-  background: hsl(var(--muted));
-}
-
-.theme-toggle:active {
-  transform: scale(0.96);
-}
-
-.theme-toggle-icon {
-  display: inline-flex;
-  height: 18px;
-  width: 18px;
-  overflow: hidden;
-}
-
-.theme-toggle-icon svg {
-  display: block;
-}
-
-.theme-sun-layer,
-.theme-moon-layer {
-  transform-box: view-box;
-  transform-origin: center;
-  transition:
-    opacity 170ms ease,
-    transform 240ms var(--ease-in-out-cubic);
-  will-change: transform, opacity;
-}
-
-.theme-moon-layer {
-  opacity: 0;
-  transform: rotate(-55deg) scale(0.62);
-}
-
-.theme-toggle-icon[data-theme-state="dark"] .theme-sun-layer {
-  opacity: 0;
-  transform: rotate(80deg) scale(0.58);
-}
-
-.theme-toggle-icon[data-theme-state="dark"] .theme-moon-layer {
-  opacity: 1;
-  transform: rotate(0deg) scale(1);
-}
 
 .focus-ring {
   outline: none;
@@ -372,22 +247,6 @@ input[type="checkbox"]:checked::after {
   }
 }
 
-@keyframes theme-wipe-still {
-  from,
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes theme-wipe-reveal {
-  from {
-    --theme-wipe-current-radius: 0px;
-  }
-  to {
-    --theme-wipe-current-radius: var(--theme-wipe-radius);
-  }
-}
-
 /* Custom scrollbar */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -418,8 +277,5 @@ input[type="checkbox"]:checked::after {
     opacity: 0;
   }
 
-  .theme-sun-layer,
-  .theme-moon-layer {
-    transition: none;
-  }
+
 }
