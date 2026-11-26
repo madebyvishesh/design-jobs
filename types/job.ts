@@ -13,6 +13,7 @@ export type Job = {
   boardKey?: string;
   lastVerifiedAt?: number;
   firstSeenAt?: number;
+  knownSince?: number;
   salary?: string;
   dateKind?: 'posted' | 'updated' | 'created' | 'unknown';
   dateSource?: AtsSource;

@@ -6,6 +6,7 @@ import { getCachedJobs } from '@/lib/jobsCache';
 import RefreshListings from '@/components/RefreshListings';
 import JobTable from '@/components/JobTable';
 import { readBrowseParams, type BrowseCriteria } from '@/lib/browseParams';
+import { expiredListingIds, sixMonthCutoff } from '@/lib/listingAge';
 import { classifyDate } from '@/lib/jobDates';
 import { isDesignRole } from '@/lib/filterJobs';
 import BoardHeader from '@/components/BoardHeader';
@@ -20,7 +21,9 @@ async function fetchSnapshot() {
   if (!jobs.aiJobs.length && !jobs.allJobs.length) {
     throw new Error('No listings returned by job sources');
   }
-  return { ...jobs, fetchedAt: Date.now() };
+  // Without publication history, an undated or updated-only record has no reliable age.
+  const dated = (rows: typeof jobs.allJobs) => rows.filter(job => ['posted', 'created'].includes(classifyDate(job).dateKind));
+  return { ...jobs, aiJobs: dated(jobs.aiJobs), allJobs: dated(jobs.allJobs), fetchedAt: Date.now() };
 }
 
 // Failed revalidation keeps the last successful publication available during a storage outage.
@@ -30,7 +33,7 @@ const getPublished = unstable_cache(async () => {
   return snapshot;
 }, ['listings-published-v1'], { revalidate: 60 });
 
-const getFallback = unstable_cache(fetchSnapshot, ['listings-fallback-v3'], { revalidate: 1800 });
+const getFallback = unstable_cache(fetchSnapshot, ['listings-fallback-v4'], { revalidate: 1800 });
 let pendingFetch: ReturnType<typeof fetchSnapshot> | undefined;
 
 const getListings = cache(async () => {
@@ -70,8 +73,10 @@ async function JobsContent({ initial }: { initial: BrowseCriteria }) {
       </main>
     </>
   );
+  const cutoff = sixMonthCutoff(Date.now());
+  const expired = new Set(expiredListingIds(listings, cutoff));
   const jobs = [...listings.aiJobs, ...listings.allJobs]
-    .filter(job => isDesignRole(job.title, job.department))
+    .filter(job => isDesignRole(job.title, job.department) && !expired.has(job.id))
     .map(job => ({ ...job, ...classifyDate(job) }));
   const checked = new Intl.DateTimeFormat('en-IN', {
     day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit',
@@ -80,7 +85,7 @@ async function JobsContent({ initial }: { initial: BrowseCriteria }) {
 
   return (
     <>
-      <JobTable jobs={jobs} fetchedAt={listings.fetchedAt} checked={checked} initial={initial} />
+      <JobTable expiredIds={Array.from(expired)} cutoff={cutoff} jobs={jobs} fetchedAt={listings.fetchedAt} checked={checked} initial={initial} />
       <RefreshListings fetchedAt={listings.fetchedAt} interval={refreshInterval} />
     </>
   );

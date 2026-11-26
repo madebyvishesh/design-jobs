@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, ArrowUpRight, Bookmark, BookmarkCheck, Check, ChevronDown, Copy, Globe2, MapPin, Search, SlidersHorizontal, X } from 'lucide-react';
 import { columns, sources, scopes, readBrowseParams, writeBrowseParams, type SortKey, type Scope, type BrowseCriteria } from '@/lib/browseParams';
+import { listingKnownSince } from '@/lib/listingAge';
 import { remoteLocation } from '@/lib/remoteLocation';
 import { countries, levels, experienceLevel, remoteEligibility } from '@/lib/discoveryFilters';
 import { useHiddenRoles } from './useHiddenRoles';
@@ -104,13 +105,15 @@ function ListingDate({ job, currentYear }: { job: Job; currentYear: number }) {
 
 
 interface Props {
+  cutoff: number;
+  expiredIds: string[];
   jobs: Job[];
   fetchedAt: number;
   checked: string;
   initial: BrowseCriteria;
 }
 
-export default function JobTable({ jobs, fetchedAt, checked, initial }: Props) {
+export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked, initial }: Props) {
   const [scope, setScope] = useState<Scope>(initial.scope);
   const [search, setSearch] = useState(initial.search);
   const [remote, setRemote] = useState(initial.remote);
@@ -136,7 +139,8 @@ export default function JobTable({ jobs, fetchedAt, checked, initial }: Props) {
   const previousVisit = usePreviousVisit(fetchedAt);
   const liveIds = useMemo(() => new Set(jobs.map(job => job.id)), [jobs]);
   const saved = useMemo(() => new Set(Object.keys(entries)), [entries]);
-  const archived = useMemo(() => Object.values(entries).flatMap(({ job }) => job && !liveIds.has(job.id) ? [job] : []), [entries, liveIds]);
+  const expired = useMemo(() => new Set(expiredIds), [expiredIds]);
+  const archived = useMemo(() => Object.values(entries).flatMap(({ job }) => job && !liveIds.has(job.id) && !expired.has(job.id) && listingKnownSince(job, fetchedAt) >= cutoff ? [job] : []), [entries, liveIds, expired, cutoff, fetchedAt]);
   const [detail, setDetail] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [range, setRange] = useState({ first: 0, last: 0 });

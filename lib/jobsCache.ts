@@ -6,6 +6,8 @@ import { withFirstSeen } from './firstSeen';
 export interface JobsPayload {
   report?: BoardReport[];
   firstSeen?: Record<string, number>;
+  ageEvidence?: Record<string, number>;
+  expiredCount?: number;
   aiJobs: Job[];
   allJobs: Job[];
   fetchedAt: number;
@@ -45,31 +47,47 @@ export async function getCachedJobs(): Promise<JobsPayload | null> {
   }
 }
 
-export async function setCachedJobs(payload: JobsPayload): Promise<JobsPayload> {
-  const { head, put, BlobNotFoundError, BlobPreconditionFailedError } = await import('@vercel/blob');
-  for (let attempt = 1; ; attempt++) {
-    try {
-      const version = await head(BLOB_FILENAME).catch(error => {
-        if (error instanceof BlobNotFoundError) return null;
-        throw error;
-      });
-      let history: JobsPayload | null = null;
-      if (version) {
-        const url = new URL(version.url);
-        url.searchParams.set('version', version.etag);
-        const response = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(10000) });
-        if (!response.ok) throw new Error('Could not read the previous job snapshot (' + response.status + ')');
-        history = await response.json() as JobsPayload;
-        if (history.fetchedAt > payload.fetchedAt) return history;
-      }
-      const snapshot = withFirstSeen(payload, history);
-      await put(BLOB_FILENAME, JSON.stringify(snapshot), {
-        access: 'public', addRandomSuffix: false, allowOverwrite: Boolean(version),
-        ifMatch: version?.etag, cacheControlMaxAge: 60, contentType: 'application/json',
-      });
-      return snapshot;
-    } catch (error) {
-      if (!(error instanceof BlobPreconditionFailedError) || attempt >= 3) throw error;
-    }
+// Writers require a versioned, readable baseline. A read outage must never look like an empty board.
+export async function readPublisherSnapshot() {
+  const { head, BlobNotFoundError } = await import('@vercel/blob');
+  const version = await head(BLOB_FILENAME, { abortSignal: AbortSignal.timeout(10000) }).catch(error => {
+    if (error instanceof BlobNotFoundError) return null;
+    throw error;
+  });
+  if (!version) return null;
+  if (!version.etag) throw new Error('Previous publication has no version');
+  const url = new URL(version.url);
+  url.searchParams.set('version', version.etag);
+  const response = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(10000) });
+  if (!response.ok) throw new Error('Could not read previous publication (HTTP ' + response.status + ')');
+  const etag = response.headers.get('etag')?.replace(/^"|"$/g, '');
+  if (etag && etag !== version.etag.replace(/^"|"$/g, '')) throw new Error('Previous publication changed during read');
+  const snapshot = await response.json() as JobsPayload;
+  const validHistory = (value: unknown) => value === undefined || (value !== null && typeof value === 'object' &&
+    !Array.isArray(value) && Object.values(value).every(time => Number.isFinite(time) && time > 0));
+  if (!Array.isArray(snapshot?.allJobs) || !Array.isArray(snapshot.aiJobs) || !Number.isFinite(snapshot.fetchedAt) ||
+      !validHistory(snapshot.firstSeen) || !validHistory(snapshot.ageEvidence)) {
+    throw new Error('Invalid previous publication');
+  }
+  return { etag: version.etag, snapshot };
+}
+
+export async function setCachedJobs(payload: JobsPayload, baseline: Awaited<ReturnType<typeof readPublisherSnapshot>>): Promise<JobsPayload> {
+  const { put, BlobPreconditionFailedError } = await import('@vercel/blob');
+  if (!payload.report?.some(board => board.status === 'ok')) throw new Error('No board completed this refresh');
+  if (baseline && baseline.snapshot.fetchedAt > payload.fetchedAt) return baseline.snapshot;
+  const snapshot = withFirstSeen(payload, baseline?.snapshot ?? null);
+  try {
+    await put(BLOB_FILENAME, JSON.stringify(snapshot), {
+      access: 'public', addRandomSuffix: false, allowOverwrite: Boolean(baseline),
+      ifMatch: baseline?.etag, cacheControlMaxAge: 60, contentType: 'application/json',
+    });
+    return snapshot;
+  } catch (error) {
+    if (!(error instanceof BlobPreconditionFailedError)) throw error;
+    const winner = await readPublisherSnapshot();
+    if (!winner) throw error;
+    console.log('Another refresh published first. Keeping its complete snapshot.');
+    return winner.snapshot;
   }
 }

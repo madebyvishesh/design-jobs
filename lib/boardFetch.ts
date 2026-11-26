@@ -106,7 +106,12 @@ export async function readPages<T>(read: (offset: number) => Promise<{ items: T[
   for (;;) {
     const page = await read(offset);
     if (!Array.isArray(page.items)) throw new Error('Invalid postings response');
-    if (page.total !== undefined && (offset === 0 || page.total > 0)) total = page.total;
+    if (page.total !== undefined) {
+      if (!Number.isSafeInteger(page.total) || page.total < 0 || (total !== undefined && total !== page.total)) {
+        throw new Error('Inconsistent postings total');
+      }
+      total = page.total;
+    }
     if (!page.items.length) {
       if (total !== undefined && offset < total) throw new Error('Incomplete postings response');
       break;
@@ -114,7 +119,9 @@ export async function readPages<T>(read: (offset: number) => Promise<{ items: T[
     const before = seen.size;
     for (const item of page.items) seen.set(key(item), item);
     if (before === seen.size) throw new Error('Provider repeated a postings page');
+    if (seen.size - before !== page.items.length) throw new Error('Overlapping postings pages');
     offset += page.items.length;
+    if (total !== undefined && offset > total) throw new Error('Inconsistent postings total');
     if (total !== undefined && offset >= total) break;
   }
   return Array.from(seen.values());

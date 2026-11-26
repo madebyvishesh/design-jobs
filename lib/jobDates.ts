@@ -5,7 +5,7 @@ type ListingDate = Required<Pick<Job, 'postedAt' | 'dateKind' | 'dateSource'>>;
 export function classifyDate(job: Job, fresh = false): ListingDate {
   const dateSource = job.dateSource ?? job.ats;
   // Old merged snapshots lost date provenance, and old Remotive rows could use fetch time.
-  const ambiguous = !fresh && (job.sources.length > 1 || dateSource === 'remotive');
+  const ambiguous = !fresh && ((job.sources?.length ?? 0) > 1 || dateSource === 'remotive');
   let dateKind = job.dateKind;
   if (!dateKind) {
     if (ambiguous || dateSource === 'yc') dateKind = 'unknown';
@@ -16,7 +16,10 @@ export function classifyDate(job: Job, fresh = false): ListingDate {
   const raw = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(job.postedAt)
     ? job.postedAt.replace(' ', 'T') + 'Z'
     : job.postedAt;
-  const time = Date.parse(raw);
+  const calendar = /^(\d{4})-(\d{2})-(\d{2})(?:$|[T ])/i.exec(raw);
+  const dayExists = calendar && Number(calendar[3]) >= 1 && Number(calendar[2]) >= 1 &&
+    Number(calendar[2]) <= 12 && Number(calendar[3]) <= new Date(Date.UTC(Number(calendar[1]), Number(calendar[2]), 0)).getUTCDate();
+  const time = dayExists ? Date.parse(raw) : NaN;
   if (!Number.isFinite(time) || time < Date.UTC(2000, 0) || dateKind === 'unknown') {
     return { postedAt: '', dateKind: 'unknown', dateSource };
   }

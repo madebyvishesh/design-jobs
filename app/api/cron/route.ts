@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { fetchAllDesignJobs } from '@/lib/fetchAllJobs';
-import { setCachedJobs } from '@/lib/jobsCache';
+import { readPublisherSnapshot, setCachedJobs } from '@/lib/jobsCache';
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
@@ -21,20 +21,22 @@ export async function GET(request: Request) {
   }
 
   const start = Date.now();
-  const jobs = await fetchAllDesignJobs();
-  const total = jobs.aiJobs.length + jobs.allJobs.length;
+  const baseline = await readPublisherSnapshot();
+  const prior = baseline?.snapshot;
+  const jobs = await fetchAllDesignJobs(prior ? [...prior.aiJobs, ...prior.allJobs] : []);
 
   if (!jobs.report.some(board => board.status === 'ok')) {
     return NextResponse.json({ error: 'No listings returned by sources' }, { status: 503 });
   }
 
-  await setCachedJobs({ ...jobs, fetchedAt: Date.now() });
+  const snapshot = await setCachedJobs({ ...jobs, fetchedAt: Date.now() }, baseline);
 
   return NextResponse.json({
     ok: true,
-    total,
-    ai: jobs.aiJobs.length,
-    all: jobs.allJobs.length,
+    total: snapshot.aiJobs.length + snapshot.allJobs.length,
+    ai: snapshot.aiJobs.length,
+    all: snapshot.allJobs.length,
+    expired: snapshot.expiredCount ?? 0,
     durationMs: Date.now() - start,
   });
 }

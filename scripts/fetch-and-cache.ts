@@ -5,7 +5,7 @@
  * Usage: npx tsx scripts/fetch-and-cache.ts
  * Required env: BLOB_READ_WRITE_TOKEN
  */
-import { getCachedJobs, setCachedJobs } from '../lib/jobsCache';
+import { readPublisherSnapshot, setCachedJobs } from '../lib/jobsCache';
 import { fetchAllDesignJobs } from '../lib/fetchAllJobs';
 
 async function main() {
@@ -18,7 +18,8 @@ async function main() {
   console.log(`[${new Date().toISOString()}] Fetching all design jobs...`);
   const start = Date.now();
 
-  const prior = await getCachedJobs();
+  const baseline = await readPublisherSnapshot();
+  const prior = baseline?.snapshot;
   const previous = prior ? [...prior.aiJobs, ...prior.allJobs] : [];
   const { aiJobs, allJobs, report } = await fetchAllDesignJobs(previous);
   const total = aiJobs.length + allJobs.length;
@@ -37,8 +38,9 @@ async function main() {
   }
   const payload = { aiJobs, allJobs, report, fetchedAt: Date.now() };
 
-  const snapshot = await setCachedJobs(payload);
+  const snapshot = await setCachedJobs(payload, baseline);
   const jobs = [...snapshot.allJobs, ...snapshot.aiJobs];
+  console.log('Excluded by six-month cutoff:', snapshot.expiredCount ?? 0);
   console.log('Published', jobs.length, 'roles, including', jobs.filter(j => j.lastVerifiedAt).length, 'last known listings from unavailable boards.');
 }
 
