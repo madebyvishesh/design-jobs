@@ -60,8 +60,10 @@ export async function readPublisherSnapshot() {
   url.searchParams.set('version', version.etag);
   const response = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(10000) });
   if (!response.ok) throw new Error('Could not read previous publication (HTTP ' + response.status + ')');
-  const etag = response.headers.get('etag')?.replace(/^"|"$/g, '');
-  if (etag && etag !== version.etag.replace(/^"|"$/g, '')) throw new Error('Previous publication changed during read');
+  // The CDN weakens ETags on compressed representations of the same blob.
+  const comparable = (etag: string) => etag.replace(/^W\//, '').replace(/^"|"$/g, '');
+  const etag = response.headers.get('etag');
+  if (etag && comparable(etag) !== comparable(version.etag)) throw new Error('Previous publication changed during read');
   const snapshot = await response.json() as JobsPayload;
   const validHistory = (value: unknown) => value === undefined || (value !== null && typeof value === 'object' &&
     !Array.isArray(value) && Object.values(value).every(time => Number.isFinite(time) && time > 0));

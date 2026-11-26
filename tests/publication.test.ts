@@ -16,7 +16,8 @@ test('a second publisher, failed read or total outage cannot erase a good public
   const server = createServer(async (req,res) => {
     const etag = 'version-' + version;
     function reply(status: number, data: unknown) {
-      res.writeHead(status, {'Content-Type':'application/json',etag});
+      const header = req.url?.startsWith('/snapshot') ? 'W/"' + etag + '"' : etag;
+      res.writeHead(status, {'Content-Type':'application/json',etag:header});
       res.end(JSON.stringify(data));
     }
     if (req.method === 'PUT') {
