@@ -23,12 +23,22 @@ async function fetchSnapshot() {
   return { ...jobs, fetchedAt: Date.now() };
 }
 
+// Failed revalidation keeps the last successful publication available during a storage outage.
+const getPublished = unstable_cache(async () => {
+  const snapshot = await getCachedJobs();
+  if (!snapshot) throw new Error('Published job snapshot unavailable');
+  return snapshot;
+}, ['listings-published-v1'], { revalidate: 60 });
+
 const getFallback = unstable_cache(fetchSnapshot, ['listings-fallback-v3'], { revalidate: 1800 });
 let pendingFetch: ReturnType<typeof fetchSnapshot> | undefined;
 
 const getListings = cache(async () => {
-  const published = await getCachedJobs();
-  if (published && Date.now() - published.fetchedAt < refreshInterval) return published;
+  const published = await getPublished().catch(error => {
+    console.error('Could not read published listings', error);
+    return null;
+  });
+  if (published) return published;
 
   pendingFetch ??= getFallback().finally(() => { pendingFetch = undefined; });
   const refresh = pendingFetch.catch(error => {
@@ -36,17 +46,12 @@ const getListings = cache(async () => {
     return null;
   });
   waitUntil(refresh);
-  // A warm fallback is often newer than the publication. Never hold available jobs for a full scrape.
   let deadline: ReturnType<typeof setTimeout> | undefined;
   try {
-    const fallback = await Promise.race([
+    return await Promise.race([
       refresh,
-      new Promise<null>(resolve => { deadline = setTimeout(() => resolve(null), published ? 150 : 12000); }),
+      new Promise<null>(resolve => { deadline = setTimeout(() => resolve(null), 12000); }),
     ]);
-    if (published && (!fallback || published.fetchedAt >= fallback.fetchedAt)) return published;
-    if (!fallback || !published?.firstSeen) return fallback;
-    const observed = (job: typeof fallback.allJobs[number]) => ({ ...job, firstSeenAt: published.firstSeen?.[job.id] });
-    return { ...fallback, aiJobs: fallback.aiJobs.map(observed), allJobs: fallback.allJobs.map(observed) };
   } finally {
     clearTimeout(deadline);
   }
