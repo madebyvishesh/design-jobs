@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, ArrowUpRight, Bookmark, BookmarkCheck, Check, ChevronDown, Copy, EyeOff, Globe2, Link2, MapPin, Search, SlidersHorizontal, Undo2, X } from 'lucide-react';
-import { columns, sources, scopes, readBrowseParams, writeBrowseParams, type SortKey, type Scope, type BrowseCriteria } from '@/lib/browseParams';
+import { columns, sortLabel, sources, scopes, readBrowseParams, writeBrowseParams, type SortKey, type Scope, type BrowseCriteria } from '@/lib/browseParams';
 import { listingKnownSince } from '@/lib/listingAge';
 import { remoteLocation } from '@/lib/remoteLocation';
 import { browsePool, prepareListing, recoveryChoices, selectedHits } from '@/lib/browseMatches';
@@ -10,13 +10,11 @@ import { listedPlaces, normalizeListing } from '@/lib/listingText';
 import { countries, levels, remoteBadge } from '@/lib/discoveryFilters';
 import { useHiddenRoles } from './useHiddenRoles';
 import JobFilters from './JobFilters';
-import ViewOptions from './ViewOptions';
 import CompareSaved from './CompareSaved';
 import { arrangements, employmentTypes, arrangementOf, employmentOf } from '@/lib/workFilters';
 import ListingHint from './ListingHint';
 import { fields, type DesignField } from '@/lib/jobFields';
 import { usePreviousVisit, useShortlist } from './useShortlist';
-import BoardSelect from './BoardSelect';
 import SavedSearches from './SavedSearches';
 import { searchTerms, highlightWords, titleRelevance } from '@/lib/jobSearch';
 import companyLogos from '@/lib/companyLogos.json';
@@ -59,11 +57,6 @@ function JobLocation({ job, terms, expanded, toggle }: { job: Job; terms: string
       </button>}
     </span>
   );
-}
-
-function sortLabel(key: SortKey, ascending: boolean) {
-  if (key === 'postedAt') return ascending ? 'Oldest first' : 'Newest first';
-  return columns[key] + (ascending ? ' A–Z' : ' Z–A');
 }
 
 function HighlightText({ text, terms }: { text: string; terms: string[] }) {
@@ -280,9 +273,9 @@ export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked,
     }
   }
 
-  function toggleDetail() {
-    setDetail(!detail);
-    try { localStorage.setItem(MODE_KEY, detail ? 'compact' : 'detail'); }
+  function changeDetail(next: boolean) {
+    setDetail(next);
+    try { localStorage.setItem(MODE_KEY, next ? 'detail' : 'compact'); }
     catch { /* The view still changes for this visit. */ }
   }
 
@@ -437,7 +430,10 @@ export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked,
     }
   }
 
-  const countFor=useCallback((c:BrowseCriteria)=>selectedHits(browsePool(indexed,c,context),c,context).hits.length,[indexed,context]);
+  const countFor = useCallback((c: BrowseCriteria, hiddenOnly: boolean) => {
+    const preview = {...context, showHidden: hiddenOnly};
+    return selectedHits(browsePool(indexed, c, preview), c, preview).hits.length;
+  }, [indexed, context]);
   const places = useMemo(() => {
     const frequency = new Map<string, number>();
     for (const row of indexed) {
@@ -447,8 +443,27 @@ export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked,
   }, [indexed]);
   const currencies=useMemo(()=>Array.from(new Set(indexed.flatMap(r=>r.bands.map(b=>b.currency)))),[indexed]);
   const savedJobs=useMemo(()=>indexed.filter(r=>saved.has(r.job.id)).map(r=>r.job),[indexed,saved]);
+  useEffect(() => {
+    if (!filtersOpen || phone) return;
+    function dismissOutside(event: Event) {
+      const target = event.target;
+      if (!(target instanceof Node) || target === document.body) return;
+      if (filterTrigger.current?.contains(target) || document.getElementById('board-filters')?.contains(target)) return;
+      setFiltersOpen(false);
+    }
+    document.addEventListener('pointerdown', dismissOutside);
+    document.addEventListener('focusin', dismissOutside);
+    return () => {
+      document.removeEventListener('pointerdown', dismissOutside);
+      document.removeEventListener('focusin', dismissOutside);
+    };
+  }, [filtersOpen, phone]);
   function closeFilters(){setFiltersOpen(false);requestAnimationFrame(()=>filterTrigger.current?.focus());}
-  function changeFilters(next:BrowseCriteria){applyCriteria(next);setShowHidden(showHidden);}
+  function changeFilters(next: BrowseCriteria, details: boolean, hiddenOnly: boolean) {
+    if (next !== criteria) applyCriteria(next);
+    setShowHidden(hiddenOnly);
+    if (details !== detail) changeDetail(details);
+  }
   function removeExtra(patch:Partial<typeof extra>) {setExtra({...extra,...patch});setPage(0);}
   async function share(job:Job,trigger:HTMLButtonElement) {
     const url=new URL('/',window.location.origin);url.searchParams.set('role',job.id);
@@ -478,24 +493,13 @@ export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked,
             }} onClick={() => setFiltersOpen(!filtersOpen)}>
               <SlidersHorizontal size={16} aria-hidden="true" /><span className="filter-label">Filters</span>{filterCount > 0 && <span className="filter-count" aria-hidden="true">{filterCount}</span>}
             </button>
-            <ViewOptions onOpen={() => setFiltersOpen(false)}>
-              <BoardSelect id="sort-order" label="Sort by" value={bestMatch ? 'best' : sortKey + (ascending ? '+' : '-')}
-                options={[...(terms.length ? [{ value: 'best', label: 'Best match' }] : []),
-                  ...(Object.keys(columns) as SortKey[]).flatMap(key => (key === 'postedAt' ? ['-', '+'] : ['+', '-']).map(dir =>
-                    ({ value: key + dir, label: sortLabel(key, dir === '+') })))]}
-                onChange={value => {
-                  if (value === 'best') { setExplicitSort(false); setSortKey('postedAt'); setAscending(false); setPage(0); }
-                  else sortBy(value.slice(0, -1) as SortKey, value.endsWith('+'));
-                }} />
-                <label><input type="checkbox" checked={detail} onChange={toggleDetail}/>Show job details</label>
-                {hidden.length>0 && <label><input type="checkbox" checked={showHidden} onChange={e=>{setShowHidden(e.target.checked);setScope('All roles');setPage(0);}}/>View hidden roles ({hidden.length})</label>}
-            </ViewOptions>
           </div>
+          {filtersOpen && <JobFilters criteria={criteria} count={countFor} places={places} currencies={currencies} hasApplied={applied.size>0}
+            details={detail} hiddenOnly={showHidden} hiddenCount={hidden.length} hasSearch={terms.length > 0}
+            phone={phone} apply={changeFilters} close={closeFilters}>
+            {active=><SavedSearches criteria={active} apply={c=>{applyCriteria(c);if(phone)closeFilters();}} fetchedAt={fetchedAt} countNew={countNewMatches}/>}
+          </JobFilters>}
         </div>
-        {filtersOpen && <JobFilters criteria={criteria} count={countFor} places={places} currencies={currencies} hasApplied={applied.size>0}
-          phone={phone} apply={changeFilters} close={closeFilters}>
-          {active=><SavedSearches criteria={active} apply={c=>{applyCriteria(c);if(phone)closeFilters();}} fetchedAt={fetchedAt} countNew={countNewMatches}/>}
-        </JobFilters>}
       </BoardHeader>
       <main id="jobs" className="board-main">
         <div className="directory-results">

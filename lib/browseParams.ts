@@ -8,6 +8,11 @@ export const sources: Record<AtsSource, string> = {
 };
 export const columns = { title: 'Role', company: 'Company', location: 'Location', postedAt: 'Listing date' };
 export type SortKey = keyof typeof columns;
+export function sortLabel(key: SortKey, ascending: boolean) {
+  if (key === 'postedAt') return ascending ? 'Oldest first' : 'Newest first';
+  return columns[key] + (ascending ? ' A–Z' : ' Z–A');
+}
+
 export const scopes = ['All roles', 'AI companies', 'Saved'] as const;
 export type Scope = typeof scopes[number];
 

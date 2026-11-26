@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { fields } from '@/lib/jobFields';
 import { levels } from '@/lib/discoveryFilters';
 import { arrangements, employmentTypes, payPeriods } from '@/lib/workFilters';
-import { sources, type BrowseCriteria } from '@/lib/browseParams';
+import { columns, sortLabel, sources, type SortKey, type BrowseCriteria } from '@/lib/browseParams';
 import FieldPicker from './FieldPicker';
 import BoardSelect from './BoardSelect';
 import LocationPicker from './LocationPicker';
@@ -16,8 +16,12 @@ interface Props {
   currencies: string[];
   places: string[];
   hasApplied: boolean;
-  count: (state: BrowseCriteria) => number;
-  apply: (state: BrowseCriteria) => void;
+  details: boolean;
+  hiddenOnly: boolean;
+  hiddenCount: number;
+  hasSearch: boolean;
+  count: (state: BrowseCriteria, hiddenOnly: boolean) => number;
+  apply: (state: BrowseCriteria, details: boolean, hiddenOnly: boolean) => void;
   close: () => void;
   children: (c: BrowseCriteria) => React.ReactNode;
 }
@@ -29,32 +33,53 @@ export default function JobFilters({
   currencies,
   places,
   hasApplied,
+  details,
+  hiddenOnly,
+  hiddenCount,
+  hasSearch,
   count,
   apply,
   close,
   children,
 }: Props) {
   const [draft, setDraft] = useState(criteria);
+  const [draftDetails, setDraftDetails] = useState(details);
+  const [draftHidden, setDraftHidden] = useState(hiddenOnly);
+  const showDetails = phone ? draftDetails : details;
+  const showHidden = phone ? draftHidden : hiddenOnly;
   const c = phone ? draft : criteria;
   const dialog = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!phone) return;
     const element = dialog.current!;
+    const shell = element.closest<HTMLElement>('.board-shell');
+    const previousWidth = document.documentElement.clientWidth;
     element.showModal();
-    return () => element.close();
+    // WebKit can release the scrollbar gutter when the document locks.
+    const released = document.documentElement.clientWidth - previousWidth;
+    if (released > 0) shell?.style.setProperty('--sheet-gutter', released + 'px');
+    return () => {
+      element.close();
+      shell?.style.removeProperty('--sheet-gutter');
+    };
   }, [phone]);
-  function change(patch: Partial<BrowseCriteria>) {
-    const next = { ...c, ...patch };
-    if (phone) setDraft(next);
-    else apply(next);
+  function change(patch: Partial<BrowseCriteria>, nextDetails = showDetails, nextHidden = showHidden) {
+    const next = Object.keys(patch).length ? { ...c, ...patch } : c;
+    if (phone) {
+      setDraft(next);
+      setDraftDetails(nextDetails);
+      setDraftHidden(nextHidden);
+    } else apply(next, nextDetails, nextHidden);
   }
   const totals = useMemo(() => {
     const fieldCounts: Record<string, number> = {},
       levelCounts: Record<string, number> = {};
-    for (const field of ['all', ...Object.keys(fields)]) fieldCounts[field] = count({ ...c, field });
-    for (const level of ['all', ...Object.keys(levels)]) levelCounts[level] = count({ ...c, level });
+    for (const field of ['all', ...Object.keys(fields)])
+      fieldCounts[field] = count({ ...c, field }, showHidden);
+    for (const level of ['all', ...Object.keys(levels)])
+      levelCounts[level] = count({ ...c, level }, showHidden);
     return { fieldCounts, levelCounts };
-  }, [c, count]);
+  }, [c, count, showHidden]);
   const work = c.remote ? 'remote' : c.arrangement || 'all';
   const content = (
     <>
@@ -68,7 +93,7 @@ export default function JobFilters({
           criteria={c}
           places={places}
           change={change}
-          count={(patch) => count({ ...c, ...patch })}
+          count={(patch) => count({ ...c, ...patch }, showHidden)}
         />
         <FieldPicker
           id="level-filter"
@@ -193,6 +218,51 @@ export default function JobFilters({
               </label>
             )}
           </div>
+          <BoardSelect
+            id="sort-order"
+            label="Sort by"
+            value={hasSearch && !c.explicitSort ? 'best' : c.sortKey + (c.ascending ? '+' : '-')}
+            options={[
+              ...(hasSearch ? [{ value: 'best', label: 'Best match' }] : []),
+              ...(Object.keys(columns) as SortKey[]).flatMap((key) =>
+                (key === 'postedAt' ? ['-', '+'] : ['+', '-']).map((dir) => ({
+                  value: key + dir,
+                  label: sortLabel(key, dir === '+'),
+                })),
+              ),
+            ]}
+            onChange={(value) =>
+              change(
+                value === 'best'
+                  ? { explicitSort: false, sortKey: 'postedAt', ascending: false }
+                  : {
+                      explicitSort: true,
+                      sortKey: value.slice(0, -1) as SortKey,
+                      ascending: value.endsWith('+'),
+                    },
+              )
+            }
+          />
+          <div className="filter-toggles display-toggles">
+            <label>
+              <input
+                type="checkbox"
+                checked={showDetails}
+                onChange={(e) => change({}, e.target.checked)}
+              />
+              Show job details
+            </label>
+            {hiddenCount > 0 && (
+              <label>
+                <input
+                  type="checkbox"
+                  checked={showHidden}
+                  onChange={(e) => change({ scope: 'All roles' }, showDetails, e.target.checked)}
+                />
+                View hidden roles ({hiddenCount})
+              </label>
+            )}
+          </div>
         </div>
       </details>
       {children(c)}
@@ -214,7 +284,7 @@ export default function JobFilters({
         {content}
       </section>
     );
-  const n = count(draft);
+  const n = count(draft, showHidden);
   return (
     <dialog
       ref={dialog}
@@ -239,7 +309,7 @@ export default function JobFilters({
           <button
             className="primary-action"
             onClick={() => {
-              apply(draft);
+              apply(draft, showDetails, showHidden);
               close();
             }}
           >

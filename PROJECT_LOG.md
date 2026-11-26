@@ -74,3 +74,7 @@ A public board for finding and saving design vacancies. Next.js and React serve 
 - Aligned the desktop and tablet filter controls, salary inputs and saved-search actions on a common grid. On phones, field names and selected values share a row. Opening an inline picker spans the sheet width, and salary controls keep their own labeled row.
 
 - Emil UI review. Active filters now have a dedicated row and visible touch controls, complete result sets use a single total, and tablet titles sit closer to their company names. Country-only remote badges avoid repeating the location. The full employer wording remains in Details. Escape collapses a job and returns focus to its disclosure. Filter and View checkboxes follow the active theme.
+
+- Removed the View toolbar button. More filters now contains the custom sorting selector, job-detail preference and hidden-role switch. Column headers still sort directly on desktop. The phone sheet previews hidden-role counts and commits sort and display changes with Show roles.
+- Anchored desktop and tablet Filters to the search toolbar as an overlay so opening and expanding it keeps listings stationary. Outside interaction dismisses the overlay. The phone retains its modal sheet and the board reserves scrollbar space.
+- Location opens with focus on its trigger. Tab enters the search input and arrow keys browse options. A fixed search header and a separate scrolling results list prevent option labels from sliding behind the input. Compensated for WebKit releasing the scrollbar gutter on phone sheet open.
