@@ -18,7 +18,7 @@ export function checkBoardResponse(response: Response) {
 
 export async function collectBoards<T>(
   source: AtsSource, boards: T[], identify: (board: T) => { board: string; domain: string },
-  fetchBoard: (board: T) => Promise<Job[]>, report: BoardReport[],
+  fetchBoard: (board: T) => Promise<Job[]>, report: BoardReport[], concurrency = 24,
 ) {
   let cursor = 0;
   const results: Job[][] = [];
@@ -37,7 +37,7 @@ export async function collectBoards<T>(
       }
     }
   }
-  await Promise.all(Array.from({ length: Math.min(24, boards.length) }, worker));
+  await Promise.all(Array.from({ length: Math.min(concurrency, boards.length) }, worker));
   return results.flat();
 }
 

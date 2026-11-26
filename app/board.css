@@ -106,7 +106,6 @@
 .role-detail,.company-cell small { display: block; margin-top: 3px; font-weight: 400; color: var(--subtle); font-size: 12px; }
 .location-cell,.date-cell { color: var(--subtle); line-height: 1.45; }
 .listing-location,.listing-portals { display: flex; align-items: center; flex-wrap: wrap; gap: 3px 7px; }
-.listing-location > span:last-child { max-width: 100%; text-wrap: pretty; }
 .remote-label { display: inline-flex; align-items: center; gap: 4px; flex: none; padding: 2px 7px; border-radius: var(--pill); background: var(--remote-bg); color: var(--remote-ink); font-size: 12px; font-weight: 535; line-height: 1.35; }
 .date-cell,.listing-portals { font-size: 12px; }
 .date-cell { font-variant-numeric: tabular-nums; }
@@ -302,4 +301,49 @@ html.theme-reveal::view-transition { pointer-events: none; }
 @media (max-width:679px) {
   .board-filters > .filter-field:first-child,.filter-toggles { grid-column: 1 / -1; }
   .filter-toggles { gap: 0 14px; }
+}
+
+.role-title { max-width: 100%; min-width: 0; }
+.role-title > [data-clip], .listing-location > .place-text {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-wrap: nowrap;
+  text-overflow: ellipsis;
+}
+.listing-location { min-width: 0; flex-wrap: nowrap; align-items: center; }
+.remote-label { flex: none; }
+.listing-hint { position: fixed; z-index: 25; width: max-content; max-width: min(30rem, calc(100vw - 16px)); padding: 8px 12px; background: var(--ink); color: var(--surface); border-radius: 8px; font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
+.field-picker { position: relative; }
+.field-options { position: absolute; z-index: 12; top: 100%; left: 0; right: 0; margin: 3px 0 0; max-height: min(340px, 50dvh); overflow: auto; overscroll-behavior: contain; background: var(--surface); color: var(--ink); padding: 4px; border: 1px solid var(--line); border-radius: var(--menu-radius); box-shadow: 0 6px 24px rgb(0 0 0 / .12); }
+.field-options label, .field-options button { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 36px; padding: 6px 9px; border-radius: 8px; cursor: pointer; }
+.field-options span { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--subtle); }
+.field-options :is(label,button):focus-within { background: var(--soft); }
+.job-detail-panel { grid-column: 1 / -1; padding: 12px 16px; margin-block: 6px; background: var(--soft); border-radius: var(--panel); font-size: 14px; }
+.job-detail-panel h3 { font-weight: 600; }
+.job-detail-panel p { color: var(--subtle); line-height: 1.5; }
+.detail-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 0 16px; }
+.detail-actions :is(a,button) { display: inline-flex; gap: 4px; align-items: center; min-height: 36px; text-decoration: underline; text-underline-offset: 3px; }
+.row-disclosure[aria-expanded=true] svg { transform: rotate(180deg); }
+.page-progress { align-self: center; color: var(--subtle); font-size: 13px; }
+@media (hover:hover) { .field-options :is(label,button):hover { background: var(--soft); } }
+@media (min-width:1080px) {
+  .listings-table[data-details=false] :is(.listing-row,.listing-head) { grid-template-columns: minmax(0,2.35fr) minmax(0,1.15fr) minmax(0,1.45fr) minmax(92px,.7fr) 154px; }
+  .listings-table[data-details=true] :is(.listing-row,.listing-head) { grid-template-columns: minmax(0,2.2fr) minmax(0,1.2fr) minmax(0,1.3fr) minmax(72px,.7fr) minmax(84px,.8fr) 202px; }
+}
+@media (min-width:680px) and (max-width:1079px) {
+  .listings-table { --action-track: 156px; }
+  .listings-table[data-details=true] { --action-track: 202px; }
+}
+@media (max-width:679px) {
+  .row-disclosure { order: 3; }
+  .company-cell { max-width: 48%; }
+  .location-cell { flex: 1 1 0; align-self: center; padding-block: 0 8px; }
+  .listing-location { overflow: hidden; }
+  .job-detail-panel { order: 8; flex: 0 0 100%; }
+}
+@media (pointer:coarse), (max-width:679px) {
+  .field-options :is(label,button), .detail-actions :is(a,button) { min-height: 44px; }
 }

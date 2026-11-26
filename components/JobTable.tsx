@@ -1,10 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpRight, Bookmark, BookmarkCheck, Check, Copy, Globe2, MapPin, Search, SlidersHorizontal, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpRight, Bookmark, BookmarkCheck, Check, ChevronDown, Copy, Globe2, MapPin, Search, SlidersHorizontal, X } from 'lucide-react';
 import { columns, sources, scopes, readBrowseParams, writeBrowseParams, type SortKey, type Scope, type BrowseCriteria } from '@/lib/browseParams';
 import { remoteLocation } from '@/lib/remoteLocation';
-import { fields, jobFields } from '@/lib/jobFields';
+import { countries, levels, experienceLevel, remoteEligibility } from '@/lib/discoveryFilters';
+import { useHiddenRoles } from './useHiddenRoles';
+import FieldPicker from './FieldPicker';
+import ListingHint from './ListingHint';
+import { fields, jobFields, type DesignField } from '@/lib/jobFields';
 import { usePreviousVisit, useShortlist } from './useShortlist';
 import BoardSelect from './BoardSelect';
 import SavedSearches from './SavedSearches';
@@ -20,12 +24,24 @@ function listingSources(job: Job): AtsSource[] {
 }
 
 function JobLocation({ job, terms }: { job: Job; terms: string[] }) {
+  const place = useRef<HTMLSpanElement>(null);
   const raw = job.location.trim();
   const location = job.isRemote ? remoteLocation(raw) : raw;
+  useEffect(() => {
+    const text = place.current;
+    if (!text) return;
+    function update() {
+      if (text) text.tabIndex = text.scrollWidth > text.clientWidth ? 0 : -1;
+    }
+    const observer = new ResizeObserver(update);
+    update();
+    observer.observe(text);
+    return () => observer.disconnect();
+  }, [location, terms]);
   return (
     <span className="listing-location">
       {job.isRemote && <span className="remote-label"><Globe2 size={13} aria-hidden="true" />Remote</span>}
-      {location ? <span>{!job.isRemote && <MapPin size={12} className="place-pin" aria-hidden="true" />}<HighlightText text={location} terms={terms} /></span> : !job.isRemote && 'Location unavailable'}
+      {location ? <span className="place-text" ref={place} data-full-text={raw} tabIndex={-1}>{!job.isRemote && <MapPin size={12} className="place-pin" aria-hidden="true" />}<HighlightText text={location} terms={terms} /></span> : !job.isRemote && 'Location unavailable'}
     </span>
   );
 }
@@ -103,6 +119,17 @@ export default function JobTable({ jobs, fetchedAt, checked, initial }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>(initial.sortKey);
   const [ascending, setAscending] = useState(initial.ascending);
   const [field, setField] = useState(initial.field);
+  const [company,setCompany] = useState(initial.company);
+  const [level,setLevel] = useState(initial.level);
+  const [salary,setSalary] = useState(initial.salary);
+  const [country,setCountry] = useState(initial.country);
+  const [unspecified,setUnspecified] = useState(initial.unspecified);
+  const [showHidden,setShowHidden] = useState(false);
+  const { hidden,setRoleHidden } = useHiddenRoles();
+  const hiddenIds = useMemo(()=>new Set(hidden),[hidden]);
+  const [undoId,setUndoId] = useState('');
+  const [opened,setOpened] = useState('');
+  const previousBrowse = useRef<{criteria: BrowseCriteria; range:{first:number;last:number}; scroll:number; opened:string; showHidden:boolean} | null>(null);
   const [newest, setNewest] = useState(initial.newest);
   const [explicitSort, setExplicitSort] = useState(initial.explicitSort);
   const { entries, toggle, markApplied } = useShortlist(jobs);
@@ -129,11 +156,12 @@ export default function JobTable({ jobs, fetchedAt, checked, initial }: Props) {
   const firstNewRow = useRef<string | null>(null);
   const results = useRef<HTMLHeadingElement>(null);
   const terms = useMemo(() => searchTerms(search), [search]);
-  const indexed = useMemo(() => [...jobs, ...archived].map(job => ({ job, index: indexJob(job), fields: jobFields(job.title, job.department) })), [jobs, archived]);
+  const indexed = useMemo(() => [...jobs, ...archived].map(job => ({ job, index: indexJob(job), fields: jobFields(job.title, job.department), level:experienceLevel(job.title), region:job.isRemote?remoteEligibility(job.location):null })), [jobs, archived]);
 
   const applyCriteria = useCallback((state: BrowseCriteria) => {
     setSearch(state.search); setScope(state.scope); setRemote(state.remote); setWeek(state.week);
-    setField(state.field); setNewest(state.newest); setExplicitSort(state.explicitSort);
+    setCompany(state.company);setLevel(state.level);setSalary(state.salary);setCountry(state.country);setUnspecified(state.unspecified);
+    setOpened('');setShowHidden(false);setField(state.field); setNewest(state.newest); setExplicitSort(state.explicitSort);
     setSource(state.source); setSortKey(state.sortKey); setAscending(state.ascending); setRange({ first: 0, last: 0 });
   }, []);
 
@@ -141,6 +169,17 @@ export default function JobTable({ jobs, fetchedAt, checked, initial }: Props) {
     function restore() {
       const state = readBrowseParams(new URL(window.location.href).searchParams);
       applyCriteria(state);
+      const prior = previousBrowse.current;
+      if (prior && !state.company) {
+        previousBrowse.current = null;
+        setRange(prior.range);
+        setOpened(prior.opened);
+        setShowHidden(prior.showHidden);
+        requestAnimationFrame(() => {
+          document.getElementById('details-trigger-' + prior.opened)?.focus({ preventScroll: true });
+          window.scrollTo(0, prior.scroll);
+        });
+      }
     }
     window.addEventListener('popstate', restore);
     return () => window.removeEventListener('popstate', restore);
@@ -150,7 +189,7 @@ export default function JobTable({ jobs, fetchedAt, checked, initial }: Props) {
     let retry: number | undefined;
     function persist() {
       const url = new URL(window.location.href);
-      writeBrowseParams(url.searchParams, { search, scope, remote, week, source, sortKey, ascending, field, newest, explicitSort });
+      writeBrowseParams(url.searchParams, { search, scope, remote, week, source, sortKey, ascending, field, newest, company, level, salary, country, unspecified, explicitSort });
       if (url.href === window.location.href) return;
       try { window.history.replaceState(null, '', url); }
       catch (error) {
@@ -162,7 +201,7 @@ export default function JobTable({ jobs, fetchedAt, checked, initial }: Props) {
     }
     persist();
     return () => window.clearTimeout(retry);
-  }, [search, scope, remote, week, source, sortKey, ascending, field, newest, explicitSort]);
+  }, [search, scope, remote, week, source, sortKey, ascending, field, newest, company, level, salary, country, unspecified, explicitSort]);
 
   useEffect(() => {
     function sync() {
@@ -208,7 +247,7 @@ export default function JobTable({ jobs, fetchedAt, checked, initial }: Props) {
   }
 
   function resetFilters() {
-    setSearch(''); setRemote(false); setWeek(false); setSource('all'); setField('all'); setNewest(false); setPage(0);
+    setShowHidden(false); setOpened(''); setSearch(''); setRemote(false); setWeek(false); setSource('all'); setField('all'); setCompany('');setLevel('all');setSalary(false);setCountry('');setUnspecified(false);setNewest(false); setPage(0);
     input.current?.focus();
   }
 
@@ -217,29 +256,47 @@ export default function JobTable({ jobs, fetchedAt, checked, initial }: Props) {
   }
 
   const savedCount = indexed.filter(({ job }) => saved.has(job.id)).length;
-  const { matches, closeTitles, newCount } = useMemo(() => {
-    const candidates = indexed.filter(({ job, fields: disciplines }) => {
+  const selectedFields = useMemo(()=>field==='all'?[]:field.split(',') as DesignField[],[field]);
+  const companyCounts = useMemo(()=>{
+    const counts=new Map<string,number>();
+    for (const job of jobs) {
+      if (!hiddenIds.has(job.id)) counts.set(job.company, (counts.get(job.company) || 0) + 1);
+    }
+    return counts;
+  },[jobs, hiddenIds]);
+  const { matches, closeTitles, newCount, fieldCounts, olderCount } = useMemo(() => {
+    const candidates = indexed.filter(({ job, region, level: jobLevel }) => {
       if (scope !== 'Saved' && !liveIds.has(job.id)) return false;
-      if (field !== 'all' && !disciplines.includes(field)) return false;
+      if (showHidden ? !hiddenIds.has(job.id) : hiddenIds.has(job.id) && scope !== 'Saved') return false;
       if (scope === 'Saved' && !saved.has(job.id)) return false;
       if (scope === 'AI companies' && !job.isAI) return false;
-      if (remote && !job.isRemote) return false;
-      if (source !== 'all' && !listingSources(job).some(value => value === source)) return false;
-      if (week) {
-        const age = fetchedAt - Date.parse(job.postedAt);
-        if (job.dateKind !== 'posted' || !(age >= 0 && age <= 7 * 86400000)) return false;
-      }
-      return true;
+      if ((remote || country) && !job.isRemote) return false;
+      if (company && job.company !== company) return false;
+      if (salary && !job.salary) return false;
+      if (level !== 'all' && jobLevel !== level) return false;
+      if (country && !(region?.worldwide || region?.countries.has(country) || (unspecified && region?.unspecified))) return false;
+      return source === 'all' || listingSources(job).some(v=>v===source);
     });
-    let hits = search.trim() && !terms.length ? [] : candidates.filter(({ index }) => jobMatches(index, terms));
-    const exactCount = hits.length;
-    if (!exactCount && terms.some(term => term.length >= 5)) {
-      hits = candidates.filter(({ index }) => jobMatches(index, terms, true));
+    function searchPool(pool: typeof candidates) {
+      if (search.trim() && !terms.length) return {hits:[],close:false};
+      const exact = pool.filter(({index})=>jobMatches(index,terms));
+      if (exact.length || !terms.some(term=>term.length>=5)) return {hits:exact,close:false};
+      return {hits:pool.filter(({index})=>jobMatches(index,terms,true)),close:true};
     }
     const isNew = (job: Job) => previousVisit !== null && (job.firstSeenAt ?? 0) > previousVisit && liveIds.has(job.id);
-    const newCount = hits.filter(({ job }) => isNew(job)).length;
-    if (newest) hits = hits.filter(({ job }) => isNew(job));
-    const ranked = hits.map(({ job, index }) => ({ job, score: terms.length && !explicitSort ? titleRelevance(index, terms, !exactCount) : 0 }));
+    function count(pool:typeof candidates) {return searchPool(pool).hits.filter(({job})=>!newest || isNew(job)).length;}
+    const recent = week ? candidates.filter(({job})=>{
+      const age=fetchedAt-Date.parse(job.postedAt);
+      return job.dateKind==='posted' && age>=0 && age<=7*86400000;
+    }) : candidates;
+    const inField = (item:typeof candidates[number])=>!selectedFields.length || selectedFields.some(f=>item.fields.includes(f));
+    const {hits:allHits,close} = searchPool(recent.filter(inField));
+    const newCount = allHits.filter(({job})=>isNew(job)).length;
+    const hits = newest ? allHits.filter(({job})=>isNew(job)) : allHits;
+    const fieldCounts:Record<string,number>={all:count(recent)};
+    for (const f of Object.keys(fields) as DesignField[]) fieldCounts[f]=count(recent.filter(item=>item.fields.includes(f)));
+    const olderCount = week && !hits.length ? count(candidates.filter(inField)) : 0;
+    const ranked = hits.map(({ job, index }) => ({ job, score: terms.length && !explicitSort ? titleRelevance(index, terms, close) : 0 }));
     ranked.sort((left, right) => {
       if (left.score !== right.score) return right.score - left.score;
       const a = left.job, b = right.job;
@@ -247,8 +304,8 @@ export default function JobTable({ jobs, fetchedAt, checked, initial }: Props) {
       const order = a[sortKey].toLowerCase().localeCompare(b[sortKey].toLowerCase(), 'en');
       return ascending ? order : -order;
     });
-    return { matches: ranked.map(hit => hit.job), closeTitles: !exactCount && hits.length > 0, newCount };
-  }, [indexed, scope, saved, remote, source, week, fetchedAt, search, terms, sortKey, ascending, field, newest, previousVisit, liveIds, explicitSort]);
+    return { matches: ranked.map(hit => hit.job), closeTitles: close && hits.length > 0, newCount, fieldCounts, olderCount };
+  }, [indexed, scope, saved, remote, source, week, fetchedAt, search, terms, sortKey, ascending, newest, previousVisit, liveIds, explicitSort, selectedFields, hiddenIds, showHidden, salary, level, country, unspecified, company]);
   const overview = useMemo(() => ({
     companies: new Set(matches.map(job => job.company)).size,
     remote: matches.filter(job => job.isRemote).length,
@@ -260,9 +317,31 @@ export default function JobTable({ jobs, fetchedAt, checked, initial }: Props) {
   const start = firstPage * PAGE_SIZE;
   const end = Math.min((current + 1) * PAGE_SIZE, matches.length);
   const visible = matches.slice(start, end);
-  const hasFilters = Boolean(search || remote || week || source !== 'all' || field !== 'all' || newest);
+  const criteria = { search, scope, remote, week, source, sortKey, ascending, field, newest, company, level, salary, country, unspecified, explicitSort };
+  const hasFilters = Boolean(company || salary || level!=='all' || country || search || remote || week || source !== 'all' || field !== 'all' || newest);
   const snapshotYear = new Date(fetchedAt).getUTCFullYear();
   const emptySaved = scope === 'Saved' && savedCount === 0;
+
+  function browseCompany(name:string) {
+    previousBrowse.current={criteria,range,scroll:window.scrollY,opened,showHidden};
+    const next={...readBrowseParams(new URLSearchParams()),company:name};
+    const url=new URL(window.location.href); writeBrowseParams(url.searchParams,next);
+    window.history.pushState(null,'',url);applyCriteria(next);
+    results.current?.focus();results.current?.scrollIntoView({block:'start'});
+  }
+  function leaveCompany() {
+    if (previousBrowse.current) window.history.back();
+    else { setCompany(''); setPage(0); results.current?.focus(); }
+  }
+  function changeHidden(job: Job) {
+    const hide = !hiddenIds.has(job.id);
+    setRoleHidden(job.id, hide);
+    setUndoId(hide ? job.id : '');
+    setOpened('');
+    setMessage(hide ? 'Role hidden' : 'Role restored');
+    if (!hide && hidden.length === 1) setShowHidden(false);
+    results.current?.focus({ preventScroll: true });
+  }
 
   function goToPage(next: number) {
     setPage(next);
@@ -345,7 +424,7 @@ export default function JobTable({ jobs, fetchedAt, checked, initial }: Props) {
   const checkedTime = <time dateTime={new Date(fetchedAt).toISOString()}>{checked} IST</time>;
   const bestMatch = Boolean(terms.length && !explicitSort);
   const customSort = explicitSort && (terms.length > 0 || sortKey !== 'postedAt' || ascending);
-  const filterCount = Number(week) + Number(source !== 'all') + Number(field !== 'all') + Number(newest);
+  const filterCount = Number(week) + Number(source !== 'all') + selectedFields.length + Number(newest) + Number(salary) + Number(level!=='all') + Number(Boolean(country)) + Number(showHidden);
   return (
     <div className="job-board">
       <BoardHeader>
@@ -375,9 +454,10 @@ export default function JobTable({ jobs, fetchedAt, checked, initial }: Props) {
             filterTrigger.current?.focus();
           }
         }}>
-          <BoardSelect id="field-filter" label="Design field" value={field}
-            options={[{ value: 'all', label: 'All design fields' }, ...Object.entries(fields).map(([value, label]) => ({ value, label }))]}
-            onChange={value => { setField(value as BrowseCriteria['field']); setPage(0); }} />
+          <FieldPicker value={field} counts={fieldCounts} onChange={value=>{setField(value);setPage(0);}}/>
+          <BoardSelect id="level-filter" label="Experience level" value={level}
+            options={[{value:'all',label:'All levels'},...Object.entries(levels).map(([value,label])=>({value,label}))]}
+            onChange={value=>{setLevel(value as BrowseCriteria['level']);setPage(0);}}/>
           <BoardSelect id="portal-filter" label="Job portal" value={source}
             options={[{ value: 'all', label: 'All portals' }, ...Object.entries(sources).map(([value, label]) => ({ value, label }))]}
             onChange={value => { setSource(value); setPage(0); }} />
@@ -389,11 +469,16 @@ export default function JobTable({ jobs, fetchedAt, checked, initial }: Props) {
               if (value === 'best') { setExplicitSort(false); setSortKey('postedAt'); setAscending(false); setPage(0); }
               else sortBy(value.slice(0, -1) as SortKey, value.endsWith('+'));
             }} />
+          {(remote || country) && <BoardSelect id="country-filter" label="Remote from" value={country || 'all'} options={[{value:'all',label:'Any country'},...countries]}
+            onChange={value=>{setCountry(value==='all'?'':value);setUnspecified(false);setPage(0);}}/>}
           <div className="filter-toggles">
+          <label className="board-control"><input type="checkbox" checked={salary} onChange={e=>{setSalary(e.target.checked);setPage(0);}}/>Salary listed</label>
+          {country && <label className="board-control"><input type="checkbox" checked={unspecified} onChange={e=>{setUnspecified(e.target.checked);setPage(0);}}/>Include unspecified countries</label>}
+          {hidden.length>0 && <label className="board-control"><input type="checkbox" checked={showHidden} onChange={e=>{setShowHidden(e.target.checked);setScope('All roles');setPage(0);}}/>View hidden roles ({hidden.length})</label>}
           <label className="board-control"><input type="checkbox" checked={week} onChange={e => { setWeek(e.target.checked); setPage(0); }} />Posted in the last 7 days</label>
           <label className="board-control"><input type="checkbox" checked={detail} onChange={toggleDetail} />Show job details</label>
           </div>
-          <SavedSearches criteria={{ search, scope, field, newest, remote, week, source, sortKey, ascending, explicitSort }} apply={applyCriteria} />
+          <SavedSearches criteria={criteria} apply={applyCriteria} />
         </div>
       </BoardHeader>
       <main id="jobs" className="board-main">
@@ -407,7 +492,7 @@ export default function JobTable({ jobs, fetchedAt, checked, initial }: Props) {
                     {item}{item === 'Saved' && savedCount > 0 && <span> ({savedCount})</span>}
                   </button>)}
                 </div>
-                <label className="board-control remote-control"><input type="checkbox" checked={remote} onChange={e => { setRemote(e.target.checked); setPage(0); }} aria-label="Remote only" />Remote</label>
+                <label className="board-control remote-control"><input type="checkbox" checked={remote} onChange={e => { setRemote(e.target.checked); if (!e.target.checked) {setCountry('');setUnspecified(false);} setPage(0); }} aria-label="Remote only" />Remote</label>
               </div>
               <div className="results-summary">
                 <h2 tabIndex={-1} ref={results} aria-live="polite" aria-atomic="true">
@@ -420,8 +505,12 @@ export default function JobTable({ jobs, fetchedAt, checked, initial }: Props) {
                 {closeTitles && <span role="status">Including close title matches</span>}
                 {(newCount > 0 || newest) && <button type="button" className="filter-chip" aria-pressed={newest} onClick={() => { setNewest(!newest); setPage(0); }}>
                   {newCount} new since last visit {newest && <X size={12} />}</button>}
-                {field !== 'all' && <button type="button" className="filter-chip" aria-label={'Remove ' + fields[field] + ' filter'} onClick={() => { setField('all'); setPage(0); filterTrigger.current?.focus(); }}>
-                  {fields[field]} <X size={12} /></button>}
+                {selectedFields.map(f=><button type="button" key={f} className="filter-chip" aria-label={'Remove '+fields[f]+' filter'} onClick={()=>{setField(selectedFields.filter(v=>v!==f).join(',')||'all');setPage(0);}}>{fields[f]} <X size={12}/></button>)}
+                {company && <button className="filter-chip" onClick={leaveCompany}>{company} · Back to results <X size={12}/></button>}
+                {level!=='all' && <button className="filter-chip" onClick={()=>{setLevel('all');setPage(0);}}>{levels[level]} <X size={12}/></button>}
+                {salary && <button className="filter-chip" onClick={()=>{setSalary(false);setPage(0);}}>Salary listed <X size={12}/></button>}
+                {country && <button className="filter-chip" onClick={()=>{setCountry('');setUnspecified(false);setPage(0);}}>{countries.find(c=>c.value===country)?.label} <X size={12}/></button>}
+                {showHidden && <button className="filter-chip" onClick={()=>{setShowHidden(false);setPage(0);}}>Hidden roles <X size={12}/></button>}
                 {customSort && <span className="sort-summary">{sortLabel(sortKey, ascending)}</span>}
                 {source !== 'all' && <button type="button" className="filter-chip" aria-label={'Remove ' + sources[source as AtsSource] + ' filter'}
                   onClick={() => { setSource('all'); setPage(0); filterTrigger.current?.focus(); }}>{sources[source as AtsSource]} <X size={12} /></button>}
@@ -443,7 +532,7 @@ export default function JobTable({ jobs, fetchedAt, checked, initial }: Props) {
               </div>
               <div role="rowgroup" ref={rowGroup}>{visible.map(job => <div className="listing-row" role="row" key={job.id}>
                 <div role="cell" className="role-cell">
-                  <a id={'listing-' + job.id} href={job.url} target="_blank" rel="noopener noreferrer" className="role-title"><span><HighlightText text={job.title} terms={terms} /><span className="title-arrow" aria-hidden="true">{'\u2060'}<ArrowUpRight size={13} /></span></span></a>
+                  <a id={'listing-' + job.id} href={job.url} target="_blank" rel="noopener noreferrer" className="role-title" data-full-text={job.title}><span data-clip=""><HighlightText text={job.title} terms={terms} /><span className="title-arrow" aria-hidden="true">{'\u2060'}<ArrowUpRight size={13} /></span></span></a>
                   {detail && job.department && <div className="role-detail">{job.department}</div>}
                   {detail && job.salary && <div className="salary-detail">Salary · {job.salary}</div>}
                   {scope === 'Saved' && <div className="saved-role-state">
@@ -471,26 +560,44 @@ export default function JobTable({ jobs, fetchedAt, checked, initial }: Props) {
                   </div>
                 </div>
                 <div role="cell" className="action-cell"><div>
+                  <button type="button" className="row-disclosure" id={'details-trigger-' + job.id} aria-label={(opened === job.id ? 'Close details for ' : 'Show details for ') + job.title}
+                    aria-expanded={opened === job.id} aria-controls={opened === job.id ? 'detail-' + job.id : undefined}
+                    title="Job details" onClick={() => setOpened(opened === job.id ? '' : job.id)}><ChevronDown size={16} aria-hidden="true" /></button>
                   {detail && <button type="button" className="copy-job" title={copiedId === job.id ? 'Link copied' : 'Copy job link'} aria-label={'Copy link to ' + job.title} onClick={event => copy(job, event.currentTarget)}>{copiedId === job.id ? <Check size={15} /> : <Copy size={15} />}</button>}
                   <button type="button" className="save-job" title={saved.has(job.id) ? 'Remove from saved roles' : 'Save role'} aria-label={'Save ' + job.title + ' at ' + job.company} aria-pressed={saved.has(job.id)} onClick={event => toggleSaved(job, event.currentTarget)}>
                     {saved.has(job.id) ? <BookmarkCheck size={17} /> : <Bookmark size={17} />}
                   </button>
                   <a style={liveIds.has(job.id) ? undefined : { visibility: 'hidden' }} href={job.url} target="_blank" rel="noopener noreferrer" aria-label={'Apply for ' + job.title + ' at ' + job.company}><span className="apply-label">Apply <ArrowUpRight size={14} aria-hidden="true" /></span></a>
                 </div></div>
+                {opened === job.id && <div role="cell" id={'detail-' + job.id} className="job-detail-panel">
+                  <h3>{job.title}</h3>
+                  <p>{job.location || 'Location unavailable'}</p>
+                  {(job.department || job.salary) && <p>{[job.department, job.salary].filter(Boolean).join(' · ')}</p>}
+                  <p><ListingDate job={job} currentYear={snapshotYear} /> · {listingSources(job).map(id => sources[id]).join(', ')}</p>
+                  {job.lastVerifiedAt && <p>Last verified {new Date(job.lastVerifiedAt).toISOString().slice(0, 10)}</p>}
+                  <div className="detail-actions">
+                    {liveIds.has(job.id) && <a href={job.url} target="_blank" rel="noopener noreferrer">Apply <ArrowUpRight size={14} /></a>}
+                    <button onClick={event => copy(job, event.currentTarget)}>{copiedId === job.id ? 'Link copied' : 'Copy link'}</button>
+                    {company !== job.company && (companyCounts.get(job.company) ?? 0) > 1 &&
+                      <button onClick={() => browseCompany(job.company)}>See all {companyCounts.get(job.company)} roles at {job.company}</button>}
+                    <button onClick={() => changeHidden(job)}>{hiddenIds.has(job.id) ? 'Restore role' : 'Hide this role'}</button>
+                  </div>
+                </div>}
               </div>)}</div>
             </div> : <div className="board-empty">
               <span className="empty-icon" aria-hidden="true">{emptySaved ? <Bookmark size={22} /> : <Search size={22} />}</span>
               <h3>{emptySaved ? 'No saved roles yet' : scope === 'Saved' ? 'No saved roles match your filters' : 'No matching roles'}</h3>
+              {olderCount>0 && <button className="board-control" onClick={()=>{setWeek(false);setPage(0);results.current?.focus();}}>Show older matches ({olderCount})</button>}
               <p>{emptySaved ? 'Use the bookmark beside a role to keep it here.' : 'Try another search or clear your filters.'}</p>
               <button ref={emptyAction} className="board-control" onClick={() => { resetFilters(); if (emptySaved || !hasFilters) setScope('All roles'); }}>{emptySaved || !hasFilters ? 'Browse all roles' : 'Clear filters'}</button>
             </div>}
             {pages > 1 && <nav className="board-pages" aria-label="Results pages">
-              <div className="pages-mobile" ref={mobilePager}>
+              <div className="pages-mobile" ref={mobilePager}><span className="page-progress">{end-start} of {matches.length} shown</span>
                 {firstPage > 0 && <button onClick={() => goToPage(firstPage - 1)}>Previous</button>}
                 {current < pages - 1 && <button onClick={() => {
                   firstNewRow.current = 'listing-' + matches[end].id;
                   setRange({ first: firstPage, last: current + 1 });
-                }}>Load more</button>}
+                }}>Load {Math.min(PAGE_SIZE,matches.length-end)} more {matches.length-end===1?'role':'roles'}</button>}
               </div>
               <div className="pages-desktop">
                 <button disabled={!firstPage} onClick={() => goToPage(firstPage - 1)}>Previous</button>
@@ -506,6 +613,11 @@ export default function JobTable({ jobs, fetchedAt, checked, initial }: Props) {
         <span>Last checked {checkedTime}</span>
         <a href="#job-search" onClick={event => { event.preventDefault(); input.current?.focus(); input.current?.scrollIntoView({ block: 'center' }); }}>Back to search <ArrowUp size={14} aria-hidden="true" /></a>
       </footer>
+      <ListingHint board={rowGroup} />
+      {undoId && !notice && <div className="board-notice"><span role="status">Role hidden</span>
+        <button onClick={() => { setRoleHidden(undoId, false); setUndoId(''); setMessage('Role restored'); results.current?.focus(); }}>Undo</button>
+        <button aria-label="Dismiss notice" onClick={() => { setUndoId(''); results.current?.focus(); }}><X size={16} /></button>
+      </div>}
       <p className="sr-only" role="status">{message}</p>
       {notice && <div className="board-notice"><span role="status">{notice}</span><button type="button" aria-label="Dismiss notice" onClick={() => {
         setNotice('');

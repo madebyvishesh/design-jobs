@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Bookmark, X } from 'lucide-react';
 import { readBrowseParams, writeBrowseParams, sources, columns, type BrowseCriteria } from '@/lib/browseParams';
 import BoardSelect from './BoardSelect';
-import { fields } from '@/lib/jobFields';
+import { countries, levels } from '@/lib/discoveryFilters';
+import { fields, type DesignField } from '@/lib/jobFields';
 
 const KEY = 'design-jobs:searches';
 function read(): string[] {
@@ -12,7 +13,8 @@ function read(): string[] {
   return Array.isArray(raw) ? raw.filter(item => typeof item === 'string') : [];
 }
 function label(state: BrowseCriteria) {
-  return [state.search.trim(), state.field !== 'all' && fields[state.field], state.scope !== 'All roles' && state.scope,
+  return [state.search.trim(), state.field !== 'all' && state.field.split(',').map(f=>fields[f as DesignField]).join(' or '), state.company,
+    state.level !== 'all' && levels[state.level], state.salary && 'Salary listed', countries.find(c=>c.value===state.country)?.label, state.country && state.unspecified && 'Include unspecified regions', state.scope !== 'All roles' && state.scope,
     state.remote && 'Remote', state.week && 'Last 7 days', state.newest && 'New since last visit',
     state.source !== 'all' && sources[state.source as keyof typeof sources],
     state.explicitSort && (state.sortKey === 'postedAt' ? state.ascending ? 'Oldest first' : 'Newest first' :

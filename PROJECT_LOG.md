@@ -4,12 +4,16 @@ A public board for finding and saving design vacancies. Next.js and React serve 
 
 ## Current work
 
-26 Nov 2026 · One shared board now supports search, saving, filters and responsive browsing. Physical iPhone and screen-reader checks remain open.
+26 November 2026. The board serves a published snapshot across all pages. The number of listings follows the public feeds, the design-role rules and posting identity. GitHub Actions runs at :05 and :35 UTC and renews its schedule on the 1st and 15th. Visiting the board reads the publication. The server attempts an emergency scrape only when the publication is unavailable.
 
-## Decisions
+## Current design and browsing decisions
 
-- Retain the existing local bookmark key so readers keep saved roles.
-- Keep GitHub publishing and the visit-triggered fallback. The board timestamp records the successful fetch.
+- Use self-hosted Inter, a text wordmark, softly rounded neutral controls and minimal dividers. The theme switch stays in position during the circular reveal and changes immediately under reduced motion.
+- In listings, show the job title and location on one line each. Overflow ends in an ellipsis. Hover or focus a clipped value to read it. Opening one job’s Details reveals the full title and employer-supplied location on touch devices.
+- On phones, align Save with the title and place the 22 px employer logo beside the company name below. Keep the Remote badge visible, job portals in Details, filtered totals beside results and the successful fetch time in the footer.
+- Keep shared search, the existing bookmark key, saved searches, applied status and archived bookmarks. Field selections match any selected discipline. Show salary and country eligibility from employer data. Ambiguous titles have an unspecified experience level.
+- Jobs can be hidden on this device, restored from Filters or immediately recovered with Undo. A company drill-down returns to the reader’s previous results. Weekly emails are off.
+- The earlier physical iPhone check covered a previous layout. A physical pass for this version, physical tablet testing and a screen-reader walkthrough remain open.
 
 ## Progress
 
@@ -42,3 +46,5 @@ A public board for finding and saving design vacancies. Next.js and React serve 
 - Restored the phone layout with the title first and a 22 px logo next to the employer below. Long locations can wrap in the remaining width. Checked the 6 px gap between logo and name and the company link’s 44 px minimum touch target in compact and detailed views at five phone widths.
 - Reproduced the unfiltered live board showing 21 roles while its publication contained 550. The page now serves a valid publication regardless of its age and revalidates its cached copy every minute. The emergency scrape runs only without an available publication. Verified all 550 unique IDs from an older snapshot across 11 pages on both phone and desktop layouts.
 - Removed result caps in the Workday and Remotive imports, paginated Lever and switched merging to posting identity. Refresh runs report board outcomes and retain previously observed jobs when a board is temporarily unavailable. Added regression coverage for variable page counts, same-title requisitions and confirmed removals.
+
+- 26 Nov 2026 · Implemented single-line listings, hover and focus disclosure, individual job Details, reversible hiding, employer browsing, field counts and multi-select, experience, salary and remote-country filters, and counted pagination and empty-state recovery. The 639-role audit publication included 18 rate-limited Workday tenants. Workday queries now run sequentially for each tenant, with at most three tenants active. Browser checks caught and corrected an older location wrapping rule and a WebKit checkbox focus issue.

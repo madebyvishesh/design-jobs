@@ -2,6 +2,7 @@ import type { Job } from '@/types/job';
 import { classifyDate, preferredDate } from './jobDates';
 
 function postingUrl(job: Job) {
+  if (!URL.canParse(job.url)) return job.id;
   const url = new URL(job.url);
   if (url.pathname.split('/').filter(Boolean).length < 2 && !url.searchParams.has('gh_jid')) return job.id;
   for (const key of Array.from(url.searchParams.keys())) {

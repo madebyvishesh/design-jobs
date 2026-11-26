@@ -100,14 +100,9 @@ async function fetchWorkdayQuery(
 }
 
 async function fetchWorkdayCompany(company: WorkdayCompany): Promise<Job[]> {
-  const results = await Promise.allSettled(
-    DESIGN_QUERIES.map(q => fetchWorkdayQuery(company, q)),
-  );
-
   const byPath = new Map<string, WorkdayPosting>();
-  for (const r of results) {
-    if (r.status === 'rejected') throw r.reason;
-    for (const posting of r.value) {
+  for (const query of DESIGN_QUERIES) {
+    for (const posting of await fetchWorkdayQuery(company, query)) {
       if (posting.externalPath && !byPath.has(posting.externalPath)) {
         byPath.set(posting.externalPath, posting);
       }
@@ -136,5 +131,5 @@ async function fetchWorkdayCompany(company: WorkdayCompany): Promise<Job[]> {
 }
 
 export function fetchAllWorkdayJobs(report: BoardReport[] = []) {
-  return collectBoards('workday', WORKDAY_COMPANIES, c => ({ board: c.tenant, domain: c.domain }), fetchWorkdayCompany, report);
+  return collectBoards('workday', WORKDAY_COMPANIES, c => ({ board: c.tenant, domain: c.domain }), fetchWorkdayCompany, report, 3);
 }

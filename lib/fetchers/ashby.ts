@@ -5,6 +5,7 @@ import { isAIFromCurated } from './curatedAI';
 import { salaryRange } from '../jobPay';
 
 interface AshbyJob {
+  isListed?: boolean;
   workplaceType?: string;
   secondaryLocations?: { location?: string }[];
   compensation?: { summaryComponents?: { compensationType: string; minValue?: number; maxValue?: number; currencyCode?: string; interval?: string }[] };
@@ -30,7 +31,7 @@ async function fetchAshbyJobs(slug: string, name: string, domain: string, batch?
     checkBoardResponse(res);
     const data = await res.json() as { jobs?: AshbyJob[] };
     if (!Array.isArray(data.jobs)) throw new Error('Missing jobs array');
-    return data.jobs.map(job => ({
+    return data.jobs.filter(job => job.isListed !== false).map(job => ({
       id: `ashby-${slug}-${job.id}`,
       title: job.title,
       company: name,
