@@ -352,6 +352,32 @@ html.theme-reveal::view-transition { pointer-events: none; }
 .listing-row[data-expanded] :is(.role-detail,.salary-detail,.compact-department,.copy-job,.listing-place,.title-arrow) {display:none;}
 .listing-row[data-expanded] .company-cell {grid-area:company;display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px;max-width:none;order:0;color:var(--subtle);font-size:13px;}
 .listing-row[data-expanded] .company-cell a {align-items:center;padding:0;}
+@media (min-width:680px) {
+  .listings-table[data-details] .listing-row[data-expanded] {
+    --header-logo-size: 36px;
+    position: relative;
+  }
+  .listing-row[data-expanded] :is(.role-cell,.company-cell) {
+    margin-inline-start: calc(var(--header-logo-size) + 10px);
+  }
+  .listing-row[data-expanded] .company-avatar {
+    position: absolute;
+    inset-inline-start: var(--summary-inset);
+    inset-block-start: calc(var(--summary-inset) + 5px);
+    width: var(--header-logo-size);
+    height: var(--header-logo-size);
+    --avatar-radius: 9px;
+    font-size: 14px;
+  }
+  .listing-row[data-expanded] .company-avatar img { padding: 4px; }
+  .listing-row[data-expanded] .company-cell { gap: 4px 8px; }
+  .listing-row[data-expanded] .company-cell > .remote-label {
+    background: transparent;
+    padding-inline: 0;
+    gap: 4px;
+  }
+  .listing-row[data-expanded] .company-cell > .remote-label svg { display: block; }
+}
 .listing-row[data-expanded] .action-cell {grid-area:actions;display:block;align-self:start;}
 .listing-row[data-expanded] .action-cell > div {display:flex;}
 .listing-row[data-expanded] .row-disclosure {background:var(--tint);color:var(--ink);}
