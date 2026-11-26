@@ -60,6 +60,34 @@ function JobLocation({ job, terms, expanded, toggle }: { job: Job; terms: string
   );
 }
 
+function JobFacts({ job }: { job: Job }) {
+  const location = job.location || 'Not listed';
+  const arrangement = arrangementOf(job);
+  const employment = employmentOf(job);
+  const facts = [{ label: 'Location', value: location }];
+  if (job.department) facts.push({ label: 'Team', value: job.department });
+  if (arrangement !== 'unknown' && !(job.isRemote && arrangement === 'remote')) {
+    facts.push({ label: 'Work arrangement', value: arrangements[arrangement] });
+  }
+  if (!employment.includes('unknown')) {
+    facts.push({ label: 'Employment type', value: employment.map(type => employmentTypes[type]).join(' / ') });
+  }
+  facts.push({ label: 'Job portal', value: listingSources(job).map(id => sources[id]).join(', ') });
+  if (job.salary) {
+    const pay = job.salary.replace(/^(?:base (?:salary|pay) range|pay range|salary range)\s*:?\s*·\s*/i, '');
+    // Keep short facts paired before a full-width pay range on a two-column card.
+    const wideLocation = location.length > 48 ? 1 : 0;
+    const insertion = pay.length > 48 ? wideLocation + 2 * Math.floor((facts.length - wideLocation) / 2) : facts.length;
+    facts.splice(insertion, 0, { label: 'Listed pay', value: pay });
+  }
+  return <dl className="detail-facts">{facts.map(({ label, value }) => (
+    <div key={label} className={label === 'Location' ? 'detail-full-location' : undefined}
+      data-wide={(label === 'Location' || label === 'Listed pay') && value.length > 48 || undefined}>
+      <dt>{label}</dt><dd className={label === 'Listed pay' ? 'listed-pay' : undefined}>{value}</dd>
+    </div>
+  ))}</dl>;
+}
+
 function HighlightText({ text, terms }: { text: string; terms: string[] }) {
   if (!terms.length) return <>{text}</>;
   return <>{highlightWords(text || '', terms).map((part, index) =>
@@ -586,8 +614,8 @@ export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked,
                     }}>{entries[job.id]?.applied ? <><Check size={13} />Applied</> : 'Mark as applied'}</button>
                   </div>}
                 </div>
-                <div role="cell" className="company-cell"><a href={job.companyDomain ? 'https://' + job.companyDomain : job.url} target="_blank" rel="noopener noreferrer">
-                  <CompanyAvatar key={job.logoUrl || job.companyDomain} job={job} /><span><HighlightText text={job.company} terms={terms} />{detail && job.batch && <small>{job.batch}</small>}</span>
+                <div role="cell" className="company-cell"><a data-full-text={job.company} href={job.companyDomain ? 'https://' + job.companyDomain : job.url} target="_blank" rel="noopener noreferrer">
+                  <CompanyAvatar key={job.logoUrl || job.companyDomain} job={job} /><span data-clip=""><HighlightText text={job.company} terms={terms} />{detail && job.batch && <small>{job.batch}</small>}</span>
                 </a>{opened === job.id && job.isRemote && <span className="remote-label"><Globe2 size={12} aria-hidden="true" />{remoteBadge(job.location)}</span>}
                   {detail && job.department && <span className="compact-department">{job.department}</span>}</div>
                 <div className="listing-place" role="presentation">
@@ -605,24 +633,17 @@ export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked,
                   </div>
                 </div>
                 <div role="cell" className="action-cell"><div>
+                  <button type="button" className="save-job" title={saved.has(job.id) ? 'Remove from saved roles' : 'Save role'} aria-label={'Save ' + job.title + ' at ' + job.company} aria-pressed={saved.has(job.id)} onClick={event => toggleSaved(job, event.currentTarget)}>
+                    {saved.has(job.id) ? <BookmarkCheck size={17} /> : <Bookmark size={17} />}
+                  </button>
                   <button type="button" className="row-disclosure" id={'details-trigger-' + job.id} aria-label={(opened === job.id ? 'Close details for ' : 'Show details for ') + job.title}
                     aria-expanded={opened === job.id} aria-controls={opened === job.id ? 'detail-' + job.id : undefined}
                     title="Job details" onClick={() => setOpened(opened === job.id ? '' : job.id)}><ChevronDown size={16} aria-hidden="true" /></button>
                   {detail && <button type="button" className="copy-job" title={copiedId === job.id ? 'Link copied' : 'Copy job link'} aria-label={'Copy link to ' + job.title} onClick={event => copy(job, event.currentTarget)}>{copiedId === job.id ? <Check size={15} /> : <Copy size={15} />}</button>}
-                  <button type="button" className="save-job" title={saved.has(job.id) ? 'Remove from saved roles' : 'Save role'} aria-label={'Save ' + job.title + ' at ' + job.company} aria-pressed={saved.has(job.id)} onClick={event => toggleSaved(job, event.currentTarget)}>
-                    {saved.has(job.id) ? <BookmarkCheck size={17} /> : <Bookmark size={17} />}
-                  </button>
                   <a style={liveIds.has(job.id) ? undefined : { visibility: 'hidden' }} href={job.url} target="_blank" rel="noopener noreferrer" aria-label={'Apply for ' + job.title + ' at ' + job.company}><span className="apply-label">Apply <ArrowUpRight size={14} aria-hidden="true" /></span></a>
                 </div></div>
                 {opened === job.id && <div role="cell" id={'detail-' + job.id} className="job-detail-panel">
-                  <dl className="detail-facts">
-                    <div className="detail-full-location" data-wide={job.location.length > 48 || undefined}><dt>Location</dt><dd>{job.location || 'Not listed'}</dd></div>
-                    {job.salary && <div data-wide={job.salary.length > 48 || undefined}><dt>Listed pay</dt><dd className="listed-pay">{job.salary.replace(/^(?:base (?:salary|pay) range|pay range|salary range)\s*:?\s*·\s*/i, '')}</dd></div>}
-                    {job.department && <div><dt>Team</dt><dd>{job.department}</dd></div>}
-                    {arrangementOf(job) !== 'unknown' && !(job.isRemote && arrangementOf(job) === 'remote') && <div><dt>Work arrangement</dt><dd>{arrangements[arrangementOf(job)]}</dd></div>}
-                    {!employmentOf(job).includes('unknown') && <div><dt>Employment type</dt><dd>{employmentOf(job).map(t=>employmentTypes[t]).join(' / ')}</dd></div>}
-                    <div><dt>Job portal</dt><dd>{listingSources(job).map(id => sources[id]).join(', ')}</dd></div>
-                  </dl>
+                  <JobFacts job={job} />
                   {scope==='Saved' && saved.has(job.id) && <label className="private-note"><span>Private note <small>On this device</small></span>
                     <textarea rows={2} value={entries[job.id]?.note||''} placeholder="Add a note" onChange={e=>{
                       if(!saveNote(job.id,e.target.value))setNotice('Note kept for this visit. Device storage is unavailable.');
