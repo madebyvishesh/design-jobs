@@ -28,8 +28,7 @@ function listingSources(job: Job): AtsSource[] {
   return job.sources?.length ? job.sources : [job.ats];
 }
 
-function JobLocation({ job, terms, expanded, toggle }: { job: Job; terms: string[]; expanded: boolean; toggle: () => void }) {
-  const place = useRef<HTMLSpanElement>(null);
+function listingPlace(job: Job) {
   const raw = job.location.trim();
   const location = job.isRemote ? remoteLocation(raw) : raw;
   const places = listedPlaces(raw);
@@ -37,6 +36,28 @@ function JobLocation({ job, terms, expanded, toggle }: { job: Job; terms: string
   const redundant = badge && (badge.endsWith(' · '+location) ||
     countries.some(c=>badge==='Remote · '+c.value && location.toLowerCase()===c.label.toLowerCase()) ||
     badge==='Remote · US' && /^(?:usa|u\.s\.|united states of america)$/i.test(location));
+  return { raw, location, places, badge, redundant };
+}
+
+function PhoneRoleSummary({ job, terms }: { job: Job; terms: string[] }) {
+  const { location, places, badge, redundant } = listingPlace(job);
+  const firstPlace = job.isRemote ? remoteLocation(places[0] || '') : places[0];
+  const place = places.length > 1 ? firstPlace?.split(',')[0] : redundant ? '' : location;
+  const shortPlace = place?.replace(/\bUnited States(?: of America)?\b/gi, 'US').replace(/\bUnited Kingdom\b/gi, 'UK');
+  return <span className="phone-role-summary" id={'phone-summary-' + job.id}>
+    <span className="summary-employer" data-full-text={job.company}><HighlightText text={job.company} terms={terms} /></span>
+    <span className="summary-place">
+      {badge && <span className="remote-label">{badge === 'Remote · Region unclear' ? 'Remote' : badge}</span>}
+      {shortPlace && <span className="summary-place-name" data-full-text={job.location}><HighlightText text={shortPlace} terms={terms} /></span>}
+      {places.length > 1 && <span>+{places.length - 1}</span>}
+      {!place && !badge && 'Location unavailable'}
+    </span>
+  </span>;
+}
+
+function JobLocation({ job, terms, expanded, toggle }: { job: Job; terms: string[]; expanded: boolean; toggle: () => void }) {
+  const place = useRef<HTMLSpanElement>(null);
+  const { raw, location, places, badge, redundant } = listingPlace(job);
   useEffect(() => {
     const text = place.current;
     if (!text) return;
@@ -638,7 +659,11 @@ export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked,
                   </button>
                   <button type="button" className="row-disclosure" id={'details-trigger-' + job.id} aria-label={(opened === job.id ? 'Close details for ' : 'Show details for ') + job.title}
                     aria-expanded={opened === job.id} aria-controls={opened === job.id ? 'detail-' + job.id : undefined}
-                    title="Job details" onClick={() => setOpened(opened === job.id ? '' : job.id)}><ChevronDown size={16} aria-hidden="true" /></button>
+                    aria-describedby={!detail && opened !== job.id ? 'phone-summary-' + job.id : undefined}
+                    title="Job details" onClick={() => setOpened(opened === job.id ? '' : job.id)}>
+                    {!detail && opened !== job.id && <PhoneRoleSummary job={job} terms={terms} />}
+                    <ChevronDown size={16} aria-hidden="true" />
+                  </button>
                   {detail && <button type="button" className="copy-job" title={copiedId === job.id ? 'Link copied' : 'Copy job link'} aria-label={'Copy link to ' + job.title} onClick={event => copy(job, event.currentTarget)}>{copiedId === job.id ? <Check size={15} /> : <Copy size={15} />}</button>}
                   <a style={liveIds.has(job.id) ? undefined : { visibility: 'hidden' }} href={job.url} target="_blank" rel="noopener noreferrer" aria-label={'Apply for ' + job.title + ' at ' + job.company}><span className="apply-label">Apply <ArrowUpRight size={14} aria-hidden="true" /></span></a>
                 </div></div>
