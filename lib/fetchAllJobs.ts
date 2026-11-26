@@ -7,6 +7,7 @@ import { fetchRemotiveJobs } from './fetchers/remotive';
 import { fetchAllWorkdayJobs } from './fetchers/workday';
 import { collectBoards, type BoardReport } from './boardFetch';
 import { mergePostings } from './mergePostings';
+import { normalizeListing } from './listingText';
 import { isDesignRole } from './filterJobs';
 
 export async function fetchAllDesignJobs(previous: Job[] = []) {
@@ -17,7 +18,7 @@ export async function fetchAllDesignJobs(previous: Job[] = []) {
     collectBoards('remotive', ['public'], board => ({ board, domain: '' }), fetchRemotiveJobs, report),
     fetchAllWorkdayJobs(report, previous),
   ]);
-  const sorted = mergePostings(groups.flat().filter(job => isDesignRole(job.title, job.department)))
+  const sorted = mergePostings(groups.flat().map(normalizeListing).filter(job => isDesignRole(job.title, job.department)))
     .sort((a,b) => b.postedAt.localeCompare(a.postedAt));
   return { aiJobs: sorted.filter(j => j.isAI), allJobs: sorted.filter(j => !j.isAI), report };
 }

@@ -5,15 +5,17 @@ import { ArrowDown, ArrowUp, ArrowUpRight, Bookmark, BookmarkCheck, Check, Chevr
 import { columns, sources, scopes, readBrowseParams, writeBrowseParams, type SortKey, type Scope, type BrowseCriteria } from '@/lib/browseParams';
 import { listingKnownSince } from '@/lib/listingAge';
 import { remoteLocation } from '@/lib/remoteLocation';
-import { countries, levels, experienceLevel, remoteEligibility } from '@/lib/discoveryFilters';
+import { browsePool, prepareListing, recoveryChoices, selectedHits } from '@/lib/browseMatches';
+import { listedPlaces, normalizeListing } from '@/lib/listingText';
+import { countries, levels, remoteBadge } from '@/lib/discoveryFilters';
 import { useHiddenRoles } from './useHiddenRoles';
 import FieldPicker from './FieldPicker';
 import ListingHint from './ListingHint';
-import { fields, jobFields, type DesignField } from '@/lib/jobFields';
+import { fields, type DesignField } from '@/lib/jobFields';
 import { usePreviousVisit, useShortlist } from './useShortlist';
 import BoardSelect from './BoardSelect';
 import SavedSearches from './SavedSearches';
-import { searchTerms, indexJob, jobMatches, highlightWords, titleRelevance } from '@/lib/jobSearch';
+import { searchTerms, highlightWords, titleRelevance } from '@/lib/jobSearch';
 import companyLogos from '@/lib/companyLogos.json';
 import BoardHeader from './BoardHeader';
 import type { Job, AtsSource } from '@/types/job';
@@ -24,10 +26,15 @@ function listingSources(job: Job): AtsSource[] {
   return job.sources?.length ? job.sources : [job.ats];
 }
 
-function JobLocation({ job, terms }: { job: Job; terms: string[] }) {
+function JobLocation({ job, terms, expanded, toggle }: { job: Job; terms: string[]; expanded: boolean; toggle: () => void }) {
   const place = useRef<HTMLSpanElement>(null);
   const raw = job.location.trim();
   const location = job.isRemote ? remoteLocation(raw) : raw;
+  const places = listedPlaces(raw);
+  const badge = job.isRemote ? remoteBadge(raw) : '';
+  const redundant = badge && (badge.endsWith(' · '+location) ||
+    countries.some(c=>badge==='Remote · '+c.value && location.toLowerCase()===c.label.toLowerCase()) ||
+    badge==='Remote · US' && /^(?:usa|u\.s\.|united states of america)$/i.test(location));
   useEffect(() => {
     const text = place.current;
     if (!text) return;
@@ -41,8 +48,12 @@ function JobLocation({ job, terms }: { job: Job; terms: string[] }) {
   }, [location, terms]);
   return (
     <span className="listing-location">
-      {job.isRemote && <span className="remote-label"><Globe2 size={13} aria-hidden="true" />Remote</span>}
-      {location ? <span className="place-text" ref={place} data-full-text={raw} tabIndex={-1}>{!job.isRemote && <MapPin size={12} className="place-pin" aria-hidden="true" />}<HighlightText text={location} terms={terms} /></span> : !job.isRemote && 'Location unavailable'}
+      {job.isRemote && <span className="remote-label"><Globe2 size={13} aria-hidden="true" />{badge}</span>}
+      {location && !redundant ? <span className={places.length > 1 ? "place-text multi-place-full" : "place-text"} ref={place} data-full-text={raw} tabIndex={-1}>{!job.isRemote && <MapPin size={12} className="place-pin" aria-hidden="true" />}<HighlightText text={location} terms={terms} /></span> : !job.isRemote && 'Location unavailable'}
+      {places.length > 1 && <button type="button" className="more-locations" aria-label={(expanded ? 'Hide locations for ' : 'Show all '+places.length+' locations for ')+job.title}
+        aria-expanded={expanded} aria-controls={expanded ? 'detail-'+job.id : undefined} onClick={toggle}>
+        {!job.isRemote && <MapPin size={12} className="place-pin" aria-hidden="true" />}<span>{places[0]}</span><strong>+{places.length-1}</strong>
+      </button>}
     </span>
   );
 }
@@ -140,7 +151,7 @@ export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked,
   const liveIds = useMemo(() => new Set(jobs.map(job => job.id)), [jobs]);
   const saved = useMemo(() => new Set(Object.keys(entries)), [entries]);
   const expired = useMemo(() => new Set(expiredIds), [expiredIds]);
-  const archived = useMemo(() => Object.values(entries).flatMap(({ job }) => job && !liveIds.has(job.id) && !expired.has(job.id) && listingKnownSince(job, fetchedAt) >= cutoff ? [job] : []), [entries, liveIds, expired, cutoff, fetchedAt]);
+  const archived = useMemo(() => Object.values(entries).flatMap(({ job }) => job && !liveIds.has(job.id) && !expired.has(job.id) && listingKnownSince(job, fetchedAt) >= cutoff ? [normalizeListing(job)] : []), [entries, liveIds, expired, cutoff, fetchedAt]);
   const [detail, setDetail] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [range, setRange] = useState({ first: 0, last: 0 });
@@ -160,7 +171,16 @@ export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked,
   const firstNewRow = useRef<string | null>(null);
   const results = useRef<HTMLHeadingElement>(null);
   const terms = useMemo(() => searchTerms(search), [search]);
-  const indexed = useMemo(() => [...jobs, ...archived].map(job => ({ job, index: indexJob(job), fields: jobFields(job.title, job.department), level:experienceLevel(job.title), region:job.isRemote?remoteEligibility(job.location):null })), [jobs, archived]);
+  const indexed = useMemo(() => [...jobs, ...archived].map(prepareListing), [jobs, archived]);
+  const context = useMemo(() => ({liveIds,saved,hiddenIds,showHidden,previousVisit,fetchedAt}),
+    [liveIds,saved,hiddenIds,showHidden,previousVisit,fetchedAt]);
+  const criteria = useMemo(() => ({ search, scope, remote, week, source, sortKey, ascending, field, newest, company, level, salary, country, unspecified, explicitSort }),
+    [search, scope, remote, week, source, sortKey, ascending, field, newest, company, level, salary, country, unspecified, explicitSort]);
+  const countNewMatches = useCallback((state: BrowseCriteria, since: number) => {
+    const normal = {...context,showHidden:false};
+    return selectedHits(browsePool(indexed,state,normal),state,normal).hits
+      .filter(({job})=>liveIds.has(job.id) && (job.firstSeenAt ?? 0)>since).length;
+  },[context,indexed,liveIds]);
 
   const applyCriteria = useCallback((state: BrowseCriteria) => {
     setSearch(state.search); setScope(state.scope); setRemote(state.remote); setWeek(state.week);
@@ -268,38 +288,14 @@ export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked,
     }
     return counts;
   },[jobs, hiddenIds]);
-  const { matches, closeTitles, newCount, fieldCounts, olderCount } = useMemo(() => {
-    const candidates = indexed.filter(({ job, region, level: jobLevel }) => {
-      if (scope !== 'Saved' && !liveIds.has(job.id)) return false;
-      if (showHidden ? !hiddenIds.has(job.id) : hiddenIds.has(job.id) && scope !== 'Saved') return false;
-      if (scope === 'Saved' && !saved.has(job.id)) return false;
-      if (scope === 'AI companies' && !job.isAI) return false;
-      if ((remote || country) && !job.isRemote) return false;
-      if (company && job.company !== company) return false;
-      if (salary && !job.salary) return false;
-      if (level !== 'all' && jobLevel !== level) return false;
-      if (country && !(region?.worldwide || region?.countries.has(country) || (unspecified && region?.unspecified))) return false;
-      return source === 'all' || listingSources(job).some(v=>v===source);
-    });
-    function searchPool(pool: typeof candidates) {
-      if (search.trim() && !terms.length) return {hits:[],close:false};
-      const exact = pool.filter(({index})=>jobMatches(index,terms));
-      if (exact.length || !terms.some(term=>term.length>=5)) return {hits:exact,close:false};
-      return {hits:pool.filter(({index})=>jobMatches(index,terms,true)),close:true};
+  const { matches, closeTitles, newCount, fieldCounts, recoveries } = useMemo(() => {
+    const pool = browsePool(indexed,criteria,context);
+    const {hits,close,newCount} = selectedHits(pool,criteria,context);
+    const fieldCounts: Record<string,number> = {};
+    for (const field of ['all',...Object.keys(fields)]) {
+      fieldCounts[field] = selectedHits(pool,{...criteria,field},context).hits.length;
     }
-    const isNew = (job: Job) => previousVisit !== null && (job.firstSeenAt ?? 0) > previousVisit && liveIds.has(job.id);
-    function count(pool:typeof candidates) {return searchPool(pool).hits.filter(({job})=>!newest || isNew(job)).length;}
-    const recent = week ? candidates.filter(({job})=>{
-      const age=fetchedAt-Date.parse(job.postedAt);
-      return job.dateKind==='posted' && age>=0 && age<=7*86400000;
-    }) : candidates;
-    const inField = (item:typeof candidates[number])=>!selectedFields.length || selectedFields.some(f=>item.fields.includes(f));
-    const {hits:allHits,close} = searchPool(recent.filter(inField));
-    const newCount = allHits.filter(({job})=>isNew(job)).length;
-    const hits = newest ? allHits.filter(({job})=>isNew(job)) : allHits;
-    const fieldCounts:Record<string,number>={all:count(recent)};
-    for (const f of Object.keys(fields) as DesignField[]) fieldCounts[f]=count(recent.filter(item=>item.fields.includes(f)));
-    const olderCount = week && !hits.length ? count(candidates.filter(inField)) : 0;
+    const recoveries = hits.length ? [] : recoveryChoices(indexed,criteria,context);
     const ranked = hits.map(({ job, index }) => ({ job, score: terms.length && !explicitSort ? titleRelevance(index, terms, close) : 0 }));
     ranked.sort((left, right) => {
       if (left.score !== right.score) return right.score - left.score;
@@ -308,8 +304,8 @@ export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked,
       const order = a[sortKey].toLowerCase().localeCompare(b[sortKey].toLowerCase(), 'en');
       return ascending ? order : -order;
     });
-    return { matches: ranked.map(hit => hit.job), closeTitles: close && hits.length > 0, newCount, fieldCounts, olderCount };
-  }, [indexed, scope, saved, remote, source, week, fetchedAt, search, terms, sortKey, ascending, newest, previousVisit, liveIds, explicitSort, selectedFields, hiddenIds, showHidden, salary, level, country, unspecified, company]);
+    return { matches: ranked.map(hit => hit.job), closeTitles: close && hits.length > 0, newCount, fieldCounts, recoveries };
+  }, [indexed, criteria, context, terms, explicitSort, sortKey, ascending]);
   const overview = useMemo(() => ({
     companies: new Set(matches.map(job => job.company)).size,
     remote: matches.filter(job => job.isRemote).length,
@@ -321,7 +317,7 @@ export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked,
   const start = firstPage * PAGE_SIZE;
   const end = Math.min((current + 1) * PAGE_SIZE, matches.length);
   const visible = matches.slice(start, end);
-  const criteria = { search, scope, remote, week, source, sortKey, ascending, field, newest, company, level, salary, country, unspecified, explicitSort };
+
   const hasFilters = Boolean(company || salary || level!=='all' || country || search || remote || week || source !== 'all' || field !== 'all' || newest);
   const snapshotYear = new Date(fetchedAt).getUTCFullYear();
   const emptySaved = scope === 'Saved' && savedCount === 0;
@@ -482,7 +478,7 @@ export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked,
           <label className="board-control"><input type="checkbox" checked={week} onChange={e => { setWeek(e.target.checked); setPage(0); }} />Posted in the last 7 days</label>
           <label className="board-control"><input type="checkbox" checked={detail} onChange={toggleDetail} />Show job details</label>
           </div>
-          <SavedSearches criteria={criteria} apply={applyCriteria} />
+          <SavedSearches criteria={criteria} apply={applyCriteria} fetchedAt={fetchedAt} countNew={countNewMatches} />
         </div>
       </BoardHeader>
       <main id="jobs" className="board-main">
@@ -550,7 +546,7 @@ export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked,
                   <CompanyAvatar key={job.logoUrl || job.companyDomain} job={job} /><span><HighlightText text={job.company} terms={terms} />{detail && job.batch && <small>{job.batch}</small>}</span>
                 </a>{detail && job.department && <span className="compact-department">{job.department}</span>}</div>
                 <div className="listing-place" role="presentation">
-                  <div role="cell" className="location-cell"><JobLocation job={job} terms={terms} /></div>
+                  <div role="cell" className="location-cell"><JobLocation job={job} terms={terms} expanded={opened===job.id} toggle={()=>setOpened(opened===job.id ? '' : job.id)} /></div>
                   <div className="listing-attribution" role="presentation">
                     <div role="cell" className="date-cell"><ListingDate job={job} currentYear={snapshotYear} /></div>
                     {detail && <div role="cell" className="portal-cell">
@@ -591,7 +587,9 @@ export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked,
             </div> : <div className="board-empty">
               <span className="empty-icon" aria-hidden="true">{emptySaved ? <Bookmark size={22} /> : <Search size={22} />}</span>
               <h3>{emptySaved ? 'No saved roles yet' : scope === 'Saved' ? 'No saved roles match your filters' : 'No matching roles'}</h3>
-              {olderCount>0 && <button className="board-control" onClick={()=>{setWeek(false);setPage(0);results.current?.focus();}}>Show older matches ({olderCount})</button>}
+              {recoveries.map(({change,label})=><button key={label} className="board-control" onClick={()=>{
+                applyCriteria({...criteria,...change}); setShowHidden(context.showHidden); results.current?.focus();
+              }}>{label}</button>)}
               <p>{emptySaved ? 'Use the bookmark beside a role to keep it here.' : 'Try another search or clear your filters.'}</p>
               <button ref={emptyAction} className="board-control" onClick={() => { resetFilters(); if (emptySaved || !hasFilters) setScope('All roles'); }}>{emptySaved || !hasFilters ? 'Browse all roles' : 'Clear filters'}</button>
             </div>}

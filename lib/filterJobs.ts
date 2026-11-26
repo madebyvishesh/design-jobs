@@ -65,6 +65,7 @@ const EXCLUDE_KEYWORDS = [
   'design verification', 'signal integrity', 'thermal design',
   'rf design', 'power design', 'mechanical design engineer',
   'layout design engineer', 'verification engineer', 'design for test',
+  'serdes', 'advanced packaging design engineer', 'semiconductor design engineer',
   'mask design', 'floorplan', 'firmware', 'memory subsystem',
   'system design engineer', 'design engineer - memory', 'clock design',
 ];

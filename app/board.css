@@ -347,3 +347,14 @@ html.theme-reveal::view-transition { pointer-events: none; }
 @media (pointer:coarse), (max-width:679px) {
   .field-options :is(label,button), .detail-actions :is(a,button) { min-height: 44px; }
 }
+
+.more-locations { display: none; }
+.remote-label { max-width: 100%; white-space: nowrap; }
+@media (max-width:679px) {
+  .listing-location > .multi-place-full { display: none; }
+  .more-locations { display: inline-flex; align-items: center; min-width: 0; max-width: 100%; min-height: 44px; gap: 5px; color: var(--subtle); }
+  .more-locations span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .more-locations strong { flex: none; font-weight: 550; color: var(--ink); }
+  .listing-location:has(.remote-label) { flex-wrap: wrap; gap: 0 5px; }
+}
+.saved-search-feedback:not(:empty) { flex-basis: 100%; color: var(--subtle); font-size: 13px; }

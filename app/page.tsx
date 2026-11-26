@@ -8,6 +8,7 @@ import JobTable from '@/components/JobTable';
 import { readBrowseParams, type BrowseCriteria } from '@/lib/browseParams';
 import { expiredListingIds, sixMonthCutoff } from '@/lib/listingAge';
 import { classifyDate } from '@/lib/jobDates';
+import { normalizeListing } from '@/lib/listingText';
 import { isDesignRole } from '@/lib/filterJobs';
 import BoardHeader from '@/components/BoardHeader';
 
@@ -75,7 +76,7 @@ async function JobsContent({ initial }: { initial: BrowseCriteria }) {
   );
   const cutoff = sixMonthCutoff(Date.now());
   const expired = new Set(expiredListingIds(listings, cutoff));
-  const jobs = [...listings.aiJobs, ...listings.allJobs]
+  const jobs = [...listings.aiJobs, ...listings.allJobs].map(normalizeListing)
     .filter(job => isDesignRole(job.title, job.department) && !expired.has(job.id))
     .map(job => ({ ...job, ...classifyDate(job) }));
   const checked = new Intl.DateTimeFormat('en-IN', {

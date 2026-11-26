@@ -16,15 +16,20 @@ const places = [
   ['uk', 'united kingdom'],
   ['nyc', 'new york city'],
   ['sf', 'san francisco'],
+  ['bengaluru', 'bangalore'],
+  ['mumbai', 'bombay'],
+  ['gurugram', 'gurgaon'],
 ];
 
 const roleSynonyms = [
   ['ux', 'user experience'],
+  ['uxr', 'ux researcher', 'user experience researcher', 'ux research', 'user experience research'],
+  ['designops', 'design ops', 'design operations'],
   ['ui', 'user interface'],
   ['sr', 'senior'],
   ['jr', 'junior'],
 ];
-const exactShortWords = new Set(['us', 'uk', 'sf', 'ai', 'ui', 'ux', 'sr', 'jr']);
+const exactShortWords = new Set(['us', 'uk', 'sf', 'ai', 'ui', 'ux', 'uxr', 'sr', 'jr']);
 
 function addAliases(words: Set<string>, field: string[], groups: string[][]) {
   const phrase = ' ' + field.join(' ') + ' ';

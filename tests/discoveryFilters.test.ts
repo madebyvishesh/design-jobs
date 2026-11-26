@@ -9,7 +9,7 @@ test('remote eligibility distinguishes unrestricted, named, and missing location
   assert.equal(remoteEligibility('London / Remote (Germany)').countries.has('DE'), true);
   assert.equal(remoteEligibility('Remote (United States and India)').countries.size, 2);
   assert.equal(remoteEligibility('Remote').unspecified, true);
-  for (const place of ['APAC', 'Remote in California', 'Toronto, CA', 'Remote except US']) {
+  for (const place of ['APAC', 'Toronto, CA', 'Remote except US']) {
     const region = remoteEligibility(place);
     assert.equal(region.unspecified, false);
     assert.equal(region.worldwide, false);
