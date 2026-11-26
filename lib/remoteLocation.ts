@@ -3,7 +3,8 @@ export function remoteLocation(raw: string) {
   const alternative = raw.match(/\s\/\sremote\b(.*)$/i);
   const place = (alternative ? alternative[1] : raw)
     .replace(/^(?:remote(?:\s+location)?|work\s+(?:at|from)\s+home|WFH)(?=\s|$|[:(,|–—-])/i, '')
-    .replace(/^[\s,:|–—-]+/, '').replace(/\s*(?:\(remote\)|\s+remote)$/i, '').trim()
+    .replace(/^[\s,:|–—-]+/, '')
+    .replace(/(?:\s*\(remote\)|(?:\s*[-–—|]\s*|\s+)remote)$/i, '').trim()
     .replace(/^\(([^()]+)\)$/, '$1').trim();
   if (/^(worldwide|anywhere(?: in the world)?|global)$/i.test(place)) return 'Worldwide';
   return place;

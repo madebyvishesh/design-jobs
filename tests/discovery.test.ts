@@ -41,6 +41,9 @@ test('exact title and explicit sort and field choices survive query round trips'
 });
 test('display only supplied salary and remote geography', () => {
   assert.equal(remoteLocation('San Francisco / Remote (US, Canada)'), 'US, Canada');
+  assert.equal(remoteLocation('Canada - Remote'), 'Canada');
+  assert.equal(remoteLocation('Texas only – Remote'), 'Texas only');
+  assert.equal(remoteLocation('United States - Remote (Pacific hours)'), 'United States - Remote (Pacific hours)');
   assert.equal(remoteLocation('Remote'), '');
   assert.equal(remoteLocation('San Francisco / Remote'), '');
   assert.equal(remoteLocation('Remote - US only'), 'US only');

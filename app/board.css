@@ -80,7 +80,11 @@
 .results-summary h2 { display: flex; flex-wrap: wrap; gap: 2px 0; font-weight: 450; font-variant-numeric: tabular-nums; scroll-margin-top: 12px; }
 .results-summary h2 span { white-space: nowrap; }
 .results-summary h2 span + span::before { content: "·"; margin-inline: 5px; }
-.results-summary .filter-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: var(--control-radius); color: var(--accent); background: var(--tint); }
+:is(.results-summary,.active-filters) .filter-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: var(--control-radius); color: var(--accent); background: var(--tint); }
+.active-filters {flex:1 1 100%;display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;font-size:12px;color:var(--subtle);}
+.active-filters:empty {display:none;}
+.active-filters .filter-chip {max-width:100%;text-align:start;overflow-wrap:anywhere;}
+.results-summary h2 span:first-child {color:var(--ink);font-weight:550;}
 .listings-table { font-size: 14px; }
 .listing-head,.listing-row { display: grid; align-items: center; column-gap: 18px; grid-template-columns: minmax(0,2.35fr) minmax(0,1.15fr) minmax(0,1.45fr) minmax(92px,.7fr) auto; }
 .listings-table[data-details=true] :is(.listing-row,.listing-head) { grid-template-columns: minmax(0,2.2fr) minmax(0,1.2fr) minmax(0,1.3fr) minmax(72px,.7fr) minmax(84px,.8fr) 150px; }
@@ -232,7 +236,14 @@
   .role-title,.company-cell a { min-height: 44px; min-width: 44px; max-width: 100%; }
   .board-scopes { --scope-inset: 5px; }
   .board-scopes button,.board-control,.board-pages button,.action-cell :is(a,button),.board-search button { min-height: 44px; min-width: 44px; }
-  .results-summary .filter-chip { min-height: 44px; background: transparent; padding-inline: 2px; }
+  :is(.results-summary,.active-filters) .filter-chip {
+    min-height:44px; min-width:44px; position:relative; isolation:isolate;
+    background:transparent; padding-inline:10px;
+  }
+  :is(.results-summary,.active-filters) .filter-chip::before {
+    content:""; position:absolute; inset:8px 0; border-radius:var(--control-radius);
+    background:var(--soft); z-index:-1;
+  }
   .board-search,.board-options .board-control,.board-masthead .theme-toggle { min-height: 44px; }
   .board-masthead .theme-toggle { min-width: 44px; }
   .board-search input { font-size: 16px; }
@@ -492,3 +503,16 @@ body:has(:is(.filter-sheet,.compare-dialog)[open]) {overflow:hidden;}
 .compare-pair .board-select-trigger {background:var(--soft);align-items:center;}
 .compare-pair .board-select-trigger svg {flex-shrink:0;}
 .compare-inner .sheet-heading {margin-bottom:8px;}
+
+@media (pointer:coarse) and (min-width:680px) and (max-width:1079px) {
+  .listings-table[data-details] .role-title {align-items:flex-end;padding-block:0 3px;}
+  .company-cell a {align-items:flex-start;padding-top:2px;}
+  .listing-place,.action-cell {align-self:center;}
+  .listing-place {padding-top:0;}
+}
+#board-filters input[type=checkbox],.view-options input[type=checkbox] {border-color:var(--subtle);}
+#board-filters input[type=checkbox]:checked,.view-options input[type=checkbox]:checked {background:var(--ink);border-color:var(--ink);}
+#board-filters input[type=checkbox]:checked::after,.view-options input[type=checkbox]:checked::after {border-color:var(--surface);}
+@media (pointer:coarse),(max-width:679px) {
+  .detail-company button,.sheet-heading button {min-width:44px;min-height:44px;}
+}

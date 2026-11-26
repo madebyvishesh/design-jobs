@@ -331,6 +331,9 @@ export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked,
   const end = Math.min((current + 1) * PAGE_SIZE, matches.length);
   const visible = matches.slice(start, end);
 
+  const roleCount = matches.length + (matches.length === 1 ? ' role' : ' roles');
+  const resultLabel = !matches.length ? '0 matching roles'
+    : start === 0 && end === matches.length ? roleCount : (start + 1) + '–' + end + ' of ' + roleCount;
   const hasFilters = Boolean(extra.city || extra.arrangement || extra.employment || extra.target || extra.hideApplied || company || salary || level!=='all' || country || search || remote || week || source !== 'all' || field !== 'all' || newest);
   const snapshotYear = new Date(fetchedAt).getUTCFullYear();
   const emptySaved = scope === 'Saved' && savedCount === 0;
@@ -509,7 +512,7 @@ export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked,
               </div>
               <div className="results-summary">
                 <h2 tabIndex={-1} ref={results} aria-live="polite" aria-atomic="true">
-                  <span>{matches.length ? (start + 1) + '–' + end + ' of ' + matches.length + (matches.length === 1 ? ' role' : ' roles') : '0 matching roles'}</span>
+                  <span>{resultLabel}</span>
                   {matches.length > 0 && <>
                     <span>{overview.companies} {overview.companies === 1 ? 'company' : 'companies'}</span>
                     <span>{overview.remote} remote</span>
@@ -518,17 +521,26 @@ export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked,
                 {closeTitles && <span role="status">Including close title matches</span>}
                 {(newCount > 0 || newest) && <button type="button" className="filter-chip" aria-pressed={newest} onClick={() => { setNewest(!newest); setPage(0); }}>
                   {newCount} new since last visit {newest && <X size={12} />}</button>}
+              </div>
+              <div className="active-filters" role="group" aria-label="Active filters" onClick={event => {
+                const button = (event.target as HTMLElement).closest('button');
+                if (button && button.contains(document.activeElement)) {
+                  requestAnimationFrame(() => {
+                    if (!button.isConnected && document.activeElement === document.body) results.current?.focus({preventScroll:true});
+                  });
+                }
+              }}>
                 {selectedFields.map(f=><button type="button" key={f} className="filter-chip" aria-label={'Remove '+fields[f]+' filter'} onClick={()=>{setField(selectedFields.filter(v=>v!==f).join(',')||'all');setPage(0);}}>{fields[f]} <X size={12}/></button>)}
                 {company && <button className="filter-chip" onClick={leaveCompany}>{company} · Back to results <X size={12}/></button>}
-                {level!=='all' && <button className="filter-chip" onClick={()=>{setLevel('all');setPage(0);}}>{level.split(',').map(l=>levels[l as keyof typeof levels]).join(' or ')} <X size={12}/></button>}
-                {salary && <button className="filter-chip" onClick={()=>{setSalary(false);setPage(0);}}>Salary listed <X size={12}/></button>}
+                {level!=='all' && <button className="filter-chip" aria-label="Remove experience level filter" onClick={()=>{setLevel('all');setPage(0);}}>{level.split(',').map(l=>levels[l as keyof typeof levels]).join(' or ')} <X size={12}/></button>}
+                {salary && <button className="filter-chip" aria-label="Remove salary listed filter" onClick={()=>{setSalary(false);setPage(0);}}>Salary listed <X size={12}/></button>}
                 {([
                   [extra.city,{city:''}], [arrangements[extra.arrangement as keyof typeof arrangements],{arrangement:''}],
                   [employmentTypes[extra.employment as keyof typeof employmentTypes],{employment:''}],
                   [extra.target && 'Range reaches '+extra.currency+' '+Number(extra.target).toLocaleString('en-US')+'/'+extra.period,{target:''}],
                   [extra.hideApplied && 'Hide applied',{hideApplied:false}]
-                ] as const).map(([label,patch])=>label && <button key={label} className="filter-chip" onClick={()=>removeExtra(patch)}>{label} <X size={12}/></button>)}
-                {country && <button className="filter-chip" onClick={()=>{setCountry('');setUnspecified(false);setPage(0);}}>{countries.find(c=>c.value===country)?.label} <X size={12}/></button>}
+                ] as const).map(([label,patch])=>label && <button key={label} className="filter-chip" aria-label={'Remove '+label+' filter'} onClick={()=>removeExtra(patch)}>{label} <X size={12}/></button>)}
+                {country && <button className="filter-chip" aria-label="Remove remote country filter" onClick={()=>{setCountry('');setUnspecified(false);setPage(0);}}>{countries.find(c=>c.value===country)?.label} <X size={12}/></button>}
                 {showHidden && <button className="filter-chip" onClick={()=>{setShowHidden(false);setPage(0);}}>Hidden roles <X size={12}/></button>}
                 {customSort && <span className="sort-summary">{sortLabel(sortKey, ascending)}</span>}
                 {source !== 'all' && <button type="button" className="filter-chip" aria-label={'Remove ' + sources[source as AtsSource] + ' filter'}
@@ -550,7 +562,13 @@ export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked,
               <div className="tablet-guide" aria-hidden="true">
                 <span>Role and company</span><span>Location and date</span>
               </div>
-              <div role="rowgroup" ref={rowGroup}>{visible.map(job => <div className="listing-row" role="row" key={job.id}>
+              <div role="rowgroup" ref={rowGroup}>{visible.map(job => <div className="listing-row" role="row" key={job.id}
+                onKeyDown={event => {
+                  if (event.key !== 'Escape' || event.defaultPrevented || opened !== job.id) return;
+                  event.stopPropagation();
+                  setOpened('');
+                  document.getElementById('details-trigger-' + job.id)?.focus();
+                }}>
                 <div role="cell" className="role-cell">
                   <a id={'listing-' + job.id} href={job.url} target="_blank" rel="noopener noreferrer" className="role-title" data-full-text={job.title}><span data-clip=""><HighlightText text={job.title} terms={terms} /><span className="title-arrow" aria-hidden="true">{'\u2060'}<ArrowUpRight size={13} /></span></span></a>
                   {detail && job.department && <div className="role-detail">{job.department}</div>}
