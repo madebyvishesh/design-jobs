@@ -1,4 +1,4 @@
-import { collectBoards, checkBoardResponse, readPages, type BoardReport } from '../boardFetch';
+import { collectBoards, readBoardJson, readPages, type BoardReport } from '../boardFetch';
 import type { Job, AtsSource } from '@/types/job';
 import { isAIFromCurated } from './curatedAI';
 
@@ -20,38 +20,30 @@ interface LeverJob {
 }
 
 async function fetchLeverJobs(slug: string, name: string, domain: string, batch?: string): Promise<Job[]> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10000);
-  try {
-    const data = await readPages<LeverJob>(async offset => {
-      const res = await fetch(`https://api.lever.co/v0/postings/${slug}?mode=json&limit=100&skip=${offset}`, {
-        signal: controller.signal, next: { revalidate: 3600 },
-      });
-      checkBoardResponse(res);
-      return { items: await res.json() };
-    }, job => job.id);
-    return data.map(job => {
-      const loc = job.categories?.location ?? '';
-      return {
-        id: `lever-${slug}-${job.id}`,
-        title: job.text,
-        company: name,
-        companyDomain: domain,
-        location: loc,
-        isRemote: job.workplaceType && job.workplaceType !== 'unspecified' ? job.workplaceType === 'remote' : /\bremote\b/i.test(loc),
-        salary: salaryRange(job.salaryRange?.min, job.salaryRange?.max, job.salaryRange?.currency, job.salaryRange?.interval),
-        url: job.hostedUrl ?? `https://jobs.lever.co/${slug}/${job.id}`,
-        postedAt: job.createdAt ? new Date(job.createdAt).toISOString() : new Date(0).toISOString(),
-        department: job.categories?.department ?? job.categories?.team ?? '',
-        ats: 'lever' as AtsSource,
-        sources: ['lever' as AtsSource],
-        isAI: isAIFromCurated(name),
-        batch,
-      };
-    });
-  } finally {
-    clearTimeout(timeout);
-  }
+  const data = await readPages<LeverJob>(async offset => {
+    const url = `https://api.lever.co/v0/postings/${slug}?mode=json&limit=100&skip=${offset}`;
+    const items = await readBoardJson<LeverJob[]>(url);
+    return { items };
+  }, job => job.id);
+  return data.map(job => {
+    const loc = job.categories?.location ?? '';
+    return {
+      id: `lever-${slug}-${job.id}`,
+      title: job.text,
+      company: name,
+      companyDomain: domain,
+      location: loc,
+      isRemote: job.workplaceType && job.workplaceType !== 'unspecified' ? job.workplaceType === 'remote' : /\bremote\b/i.test(loc),
+      salary: salaryRange(job.salaryRange?.min, job.salaryRange?.max, job.salaryRange?.currency, job.salaryRange?.interval),
+      url: job.hostedUrl ?? `https://jobs.lever.co/${slug}/${job.id}`,
+      postedAt: job.createdAt ? new Date(job.createdAt).toISOString() : new Date(0).toISOString(),
+      department: job.categories?.department ?? job.categories?.team ?? '',
+      ats: 'lever' as AtsSource,
+      sources: ['lever' as AtsSource],
+      isAI: isAIFromCurated(name),
+      batch,
+    };
+  });
 }
 
 const LEVER_COMPANIES: Array<{ slug: string; name: string; domain: string; batch?: string }> = [
@@ -75,7 +67,6 @@ const LEVER_COMPANIES: Array<{ slug: string; name: string; domain: string; batch
   { slug: 'logrocket', name: 'LogRocket', domain: 'logrocket.com', batch: 'W17' },
   { slug: 'amplitude', name: 'Amplitude', domain: 'amplitude.com' },
   { slug: 'sigma', name: 'Sigma Computing', domain: 'sigmacomputing.com', batch: 'S17' },
-  { slug: 'cresta', name: 'Cresta', domain: 'cresta.com', batch: 'S18' },
   { slug: 'gong', name: 'Gong', domain: 'gong.io' },
   { slug: 'hightouch', name: 'Hightouch', domain: 'hightouch.com' },
   { slug: 'brainco', name: 'Brainco', domain: 'brain.co' },
@@ -181,7 +172,6 @@ const LEVER_COMPANIES: Array<{ slug: string; name: string; domain: string; batch
   { slug: 'navattic', name: 'Navattic', domain: 'navattic.com' },
   { slug: 'storylane', name: 'Storylane', domain: 'storylane.io' },
   { slug: 'arcade-software', name: 'Arcade', domain: 'arcade.software' },
-  { slug: 'walnut', name: 'Walnut', domain: 'walnut.io' },
   { slug: 'trumpet', name: 'Trumpet', domain: 'trumpet.so' },
   // Marketing Platforms
   { slug: 'sendbird', name: 'Sendbird', domain: 'sendbird.com' },
@@ -201,7 +191,6 @@ const LEVER_COMPANIES: Array<{ slug: string; name: string; domain: string; batch
   { slug: 'kapwing', name: 'Kapwing', domain: 'kapwing.com' },
   { slug: 'invideo', name: 'InVideo', domain: 'invideo.io' },
   { slug: 'animaker', name: 'Animaker', domain: 'animaker.com' },
-  { slug: 'vyond', name: 'Vyond', domain: 'vyond.com' },
   { slug: 'wondershare', name: 'Wondershare', domain: 'wondershare.com' },
   // Publishing / Content
   { slug: 'ghost', name: 'Ghost', domain: 'ghost.org' },
@@ -343,5 +332,5 @@ export async function fetchAllLeverJobs(report: BoardReport[] = []): Promise<Job
     return true;
   });
   return collectBoards('lever', unique, c => ({ board: c.slug, domain: c.domain }),
-    c => fetchLeverJobs(c.slug, c.name, c.domain, c.batch), report);
+    c => fetchLeverJobs(c.slug, c.name, c.domain, c.batch), report, 8);
 }

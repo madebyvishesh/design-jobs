@@ -54,6 +54,7 @@ async function fetchGreenhouseJobs(slug: string, name: string, domain: string, b
 
 const GREENHOUSE_COMPANIES: Array<{ slug: string; name: string; domain: string; batch?: string }> = [
   // AI / ML
+  { slug: 'cresta', name: 'Cresta', domain: 'cresta.com', batch: 'S18' },
   { slug: 'openai', name: 'OpenAI', domain: 'openai.com', batch: 'W16' },
   { slug: 'anthropic', name: 'Anthropic', domain: 'anthropic.com', batch: 'S21' },
   { slug: 'deepmind', name: 'Google DeepMind', domain: 'deepmind.com' },

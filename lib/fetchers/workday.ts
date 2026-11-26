@@ -1,4 +1,4 @@
-import { collectBoards, checkBoardResponse, readPages, type BoardReport } from '../boardFetch';
+import { collectBoards, readBoardJson, readPages, type BoardReport } from '../boardFetch';
 import type { Job, AtsSource } from '@/types/job';
 import { isAIFromCurated } from './curatedAI';
 
@@ -57,7 +57,7 @@ const WORKDAY_COMPANIES: WorkdayCompany[] = [
   { tenant: 'hp', dc: 'wd5', site: 'ExternalCareerSite', name: 'HP', domain: 'hp.com' },
   { tenant: 'hpe', dc: 'wd5', site: 'Jobsathpe', name: 'Hewlett Packard Enterprise', domain: 'hpe.com' },
   { tenant: 'target', dc: 'wd5', site: 'targetcareers', name: 'Target', domain: 'target.com' },
-  { tenant: 'comcast', dc: 'wd5', site: 'Comcast_Careers', name: 'Comcast', domain: 'comcast.com' },
+  { tenant: 'comcast', dc: 'wd115', site: 'Comcast_Careers', name: 'Comcast', domain: 'comcast.com' },
   { tenant: 'warnerbros', dc: 'wd5', site: 'global', name: 'Warner Bros. Discovery', domain: 'wbd.com' },
   { tenant: 'zillow', dc: 'wd5', site: 'Zillow_Group_External', name: 'Zillow', domain: 'zillow.com' },
   { tenant: 'gilead', dc: 'wd1', site: 'gileadcareers', name: 'Gilead Sciences', domain: 'gilead.com' },
@@ -87,13 +87,10 @@ async function fetchWorkdayQuery(
 ): Promise<WorkdayPosting[]> {
   const url = `https://${company.tenant}.${company.dc}.myworkdayjobs.com/wday/cxs/${company.tenant}/${company.site}/jobs`;
   return readPages<WorkdayPosting>(async offset => {
-    const res = await fetch(url, {
+    const data = await readBoardJson<WorkdayResponse>(url, {
       method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({ appliedFacets: {}, limit: 20, offset, searchText: query }),
-      signal: AbortSignal.timeout(15000), next: { revalidate: 3600 },
     });
-    checkBoardResponse(res);
-    const data: WorkdayResponse = await res.json();
     if (!Array.isArray(data.jobPostings)) throw new Error('Missing jobPostings array');
     return { items: data.jobPostings, total: data.total };
   }, posting => posting.externalPath);

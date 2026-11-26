@@ -84,7 +84,6 @@ const ASHBY_COMPANIES: Array<{ slug: string; name: string; domain: string; batch
   { slug: 'typeface', name: 'Typeface', domain: 'typeface.ai' },
   { slug: 'synthesia', name: 'Synthesia', domain: 'synthesia.io' },
   { slug: 'factory', name: 'Factory', domain: 'factory.ai' },
-  { slug: 'cresta', name: 'Cresta', domain: 'cresta.com', batch: 'S18' },
   // Productivity / Collab tools
   { slug: 'linear', name: 'Linear', domain: 'linear.app', batch: 'W19' },
   { slug: 'notion', name: 'Notion', domain: 'notion.so', batch: 'W18' },
