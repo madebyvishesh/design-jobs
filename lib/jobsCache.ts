@@ -42,13 +42,29 @@ export async function getCachedJobs(): Promise<JobsPayload | null> {
 }
 
 export async function setCachedJobs(payload: JobsPayload): Promise<void> {
-  const { get, put } = await import('@vercel/blob');
-  const previous = await get(BLOB_FILENAME, { access: 'public' });
-  const history: JobsPayload | null = previous?.stream ? await new Response(previous.stream).json() : null;
-  if (history && history.fetchedAt > payload.fetchedAt) return;
-  const snapshot = withFirstSeen(payload, history);
-  await put(BLOB_FILENAME, JSON.stringify(snapshot), {
-    access: 'public', addRandomSuffix: false, allowOverwrite: Boolean(previous),
-    ifMatch: previous?.blob.etag, cacheControlMaxAge: 60, contentType: 'application/json',
-  });
+  const { head, put, BlobNotFoundError, BlobPreconditionFailedError } = await import('@vercel/blob');
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const version = await head(BLOB_FILENAME).catch(error => {
+        if (error instanceof BlobNotFoundError) return null;
+        throw error;
+      });
+      let history: JobsPayload | null = null;
+      if (version) {
+        const url = new URL(version.url);
+        url.searchParams.set('version', version.etag);
+        const response = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(10000) });
+        if (!response.ok) throw new Error('Could not read the previous job snapshot (' + response.status + ')');
+        history = await response.json() as JobsPayload;
+        if (history.fetchedAt > payload.fetchedAt) return;
+      }
+      await put(BLOB_FILENAME, JSON.stringify(withFirstSeen(payload, history)), {
+        access: 'public', addRandomSuffix: false, allowOverwrite: Boolean(version),
+        ifMatch: version?.etag, cacheControlMaxAge: 60, contentType: 'application/json',
+      });
+      return;
+    } catch (error) {
+      if (!(error instanceof BlobPreconditionFailedError) || attempt >= 3) throw error;
+    }
+  }
 }
