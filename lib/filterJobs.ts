@@ -59,6 +59,7 @@ const EXCLUDE_KEYWORDS = [
   'chip design', 'pcb design', 'vlsi', 'fpga', 'asic',
   'circuit design', 'physical design engineer',
   // Hardware / silicon design engineering (not product/UX design)
+  'power generation design', 'bim designer', 'industrial design engineer', 'manufacturing design',
   'hardware design', 'board design', 'interconnect', 'silicon',
   'analog design', 'rtl design', 'soc design', 'co-design',
   'design verification', 'signal integrity', 'thermal design',
@@ -72,6 +73,9 @@ export function isDesignRole(title: string | undefined | null, department = ''):
   if (!title) return false;
   const lower = title.toLowerCase();
   if (EXCLUDE_KEYWORDS.some(kw => lower.includes(kw))) return false;
+  if (/\b(?:software|frontend|front.end|backend|back.end|full.stack|engineering)\b/.test(lower) &&
+      /\b(?:engineer(?:ing)?|developer|manager)\b/.test(lower) &&
+      !/\b(?:design engineer|design system|designer|design technologist|ux engineer|ui engineer)/.test(lower)) return false;
   const facilityRole = /\b(data cent(?:er|re)|data hall|rack design|fit.out)\b/i;
   const digitalRole = /\b(ux|ui|user experience|interaction design|product designer|design systems?)\b/i;
   if (facilityRole.test(title + ' ' + department) && !digitalRole.test(title)) return false;

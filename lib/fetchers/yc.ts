@@ -117,7 +117,8 @@ export async function fetchYCJobs(): Promise<Job[]> {
         company: job.companyName,
         companyDomain: '',
         logoUrl: job.companyLogoUrl ?? undefined,
-        location: job.location.replace(/ \/ Remote.*$/, '').replace(/, US$/, '').trim(),
+        location: job.location.trim(),
+        salary: typeof job.salary === 'string' ? job.salary.trim() || undefined : undefined,
         isRemote,
         url: `https://www.workatastartup.com/jobs/${job.id}`,
         // YC exposes company activity rather than a vacancy date.

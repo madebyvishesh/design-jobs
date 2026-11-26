@@ -1,7 +1,11 @@
 import type { Job, AtsSource } from '@/types/job';
 import { isAIFromCurated } from './curatedAI';
 
+import { salaryRange } from '../jobPay';
+
 interface LeverJob {
+  workplaceType?: string;
+  salaryRange?: { min?: number; max?: number; currency?: string; interval?: string };
   id: string;
   text: string;
   categories?: {
@@ -32,7 +36,8 @@ async function fetchLeverJobs(slug: string, name: string, domain: string, batch?
         company: name,
         companyDomain: domain,
         location: loc,
-        isRemote: loc.toLowerCase().includes('remote'),
+        isRemote: job.workplaceType && job.workplaceType !== 'unspecified' ? job.workplaceType === 'remote' : /\bremote\b/i.test(loc),
+        salary: salaryRange(job.salaryRange?.min, job.salaryRange?.max, job.salaryRange?.currency, job.salaryRange?.interval),
         url: job.hostedUrl ?? `https://jobs.lever.co/${slug}/${job.id}`,
         postedAt: job.createdAt ? new Date(job.createdAt).toISOString() : new Date(0).toISOString(),
         department: job.categories?.department ?? job.categories?.team ?? '',

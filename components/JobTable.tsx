@@ -1,15 +1,19 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpRight, Bookmark, BookmarkCheck, Check, ChevronDown, Copy, Globe2, MapPin, Search, SlidersHorizontal, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowDown, ArrowUp, ArrowUpRight, Bookmark, BookmarkCheck, Check, Copy, Globe2, MapPin, Search, SlidersHorizontal, X } from 'lucide-react';
 import { columns, sources, scopes, readBrowseParams, writeBrowseParams, type SortKey, type Scope, type BrowseCriteria } from '@/lib/browseParams';
-import { searchTerms, indexJob, jobMatches, highlightWords } from '@/lib/jobSearch';
+import { remoteLocation } from '@/lib/remoteLocation';
+import { fields, jobFields } from '@/lib/jobFields';
+import { usePreviousVisit, useShortlist } from './useShortlist';
+import BoardSelect from './BoardSelect';
+import SavedSearches from './SavedSearches';
+import { searchTerms, indexJob, jobMatches, highlightWords, titleRelevance } from '@/lib/jobSearch';
 import companyLogos from '@/lib/companyLogos.json';
 import BoardHeader from './BoardHeader';
 import type { Job, AtsSource } from '@/types/job';
 
 const PAGE_SIZE = 50;
-const SAVED_KEY = 'design-jobs:saved';
 const MODE_KEY = 'design-jobs:view-mode';
 function listingSources(job: Job): AtsSource[] {
   return job.sources?.length ? job.sources : [job.ats];
@@ -17,11 +21,7 @@ function listingSources(job: Job): AtsSource[] {
 
 function JobLocation({ job, terms }: { job: Job; terms: string[] }) {
   const raw = job.location.trim();
-  // Preserve mixed arrangements such as “Remote or in-office in San Francisco”.
-  const location = job.isRemote
-    ? raw.replace(/^[Rr]emote(?: [Ll]ocation)?(?:\s*[-–—,:|]\s*|\s+(?=[A-Z(])|$)/, '')
-        .replace(/^\(([^()]+)\)$/, '$1').trim()
-    : raw;
+  const location = job.isRemote ? remoteLocation(raw) : raw;
   return (
     <div className="listing-location">
       {job.isRemote && <span className="remote-label"><Globe2 size={13} aria-hidden="true" />Remote</span>}
@@ -33,11 +33,6 @@ function JobLocation({ job, terms }: { job: Job; terms: string[] }) {
 function sortLabel(key: SortKey, ascending: boolean) {
   if (key === 'postedAt') return ascending ? 'Oldest first' : 'Newest first';
   return columns[key] + (ascending ? ' A–Z' : ' Z–A');
-}
-
-function readSaved() {
-  const ids: unknown = JSON.parse(localStorage.getItem(SAVED_KEY) ?? '[]');
-  return new Set<string>(Array.isArray(ids) ? ids.filter(id => typeof id === 'string') : []);
 }
 
 function HighlightText({ text, terms }: { text: string; terms: string[] }) {
@@ -104,12 +99,18 @@ export default function JobTable({ jobs, fetchedAt, checked, initial }: Props) {
   const [source, setSource] = useState(initial.source);
   const [sortKey, setSortKey] = useState<SortKey>(initial.sortKey);
   const [ascending, setAscending] = useState(initial.ascending);
-  const [saved, setSaved] = useState(new Set<string>());
+  const [field, setField] = useState(initial.field);
+  const [newest, setNewest] = useState(initial.newest);
+  const [explicitSort, setExplicitSort] = useState(initial.explicitSort);
+  const { entries, toggle, markApplied } = useShortlist(jobs);
+  const previousVisit = usePreviousVisit(fetchedAt);
+  const liveIds = useMemo(() => new Set(jobs.map(job => job.id)), [jobs]);
+  const saved = useMemo(() => new Set(Object.keys(entries)), [entries]);
+  const archived = useMemo(() => Object.values(entries).flatMap(({ job }) => job && !liveIds.has(job.id) ? [job] : []), [entries, liveIds]);
   const [detail, setDetail] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [range, setRange] = useState({ first: 0, last: 0 });
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const storageUnavailable = useRef(false);
   function setPage(index: number) {
     setRange({ first: index, last: index });
   }
@@ -125,23 +126,28 @@ export default function JobTable({ jobs, fetchedAt, checked, initial }: Props) {
   const firstNewRow = useRef<string | null>(null);
   const results = useRef<HTMLHeadingElement>(null);
   const terms = useMemo(() => searchTerms(search), [search]);
-  const indexed = useMemo(() => jobs.map(job => ({ job, index: indexJob(job) })), [jobs]);
+  const indexed = useMemo(() => [...jobs, ...archived].map(job => ({ job, index: indexJob(job), fields: jobFields(job.title, job.department) })), [jobs, archived]);
+
+  const applyCriteria = useCallback((state: BrowseCriteria) => {
+    setSearch(state.search); setScope(state.scope); setRemote(state.remote); setWeek(state.week);
+    setField(state.field); setNewest(state.newest); setExplicitSort(state.explicitSort);
+    setSource(state.source); setSortKey(state.sortKey); setAscending(state.ascending); setRange({ first: 0, last: 0 });
+  }, []);
 
   useEffect(() => {
     function restore() {
       const state = readBrowseParams(new URL(window.location.href).searchParams);
-      setSearch(state.search); setScope(state.scope); setRemote(state.remote); setWeek(state.week);
-      setSource(state.source); setSortKey(state.sortKey); setAscending(state.ascending); setPage(0);
+      applyCriteria(state);
     }
     window.addEventListener('popstate', restore);
     return () => window.removeEventListener('popstate', restore);
-  }, []);
+  }, [applyCriteria]);
 
   useEffect(() => {
     let retry: number | undefined;
     function persist() {
       const url = new URL(window.location.href);
-      writeBrowseParams(url.searchParams, { search, scope, remote, week, source, sortKey, ascending });
+      writeBrowseParams(url.searchParams, { search, scope, remote, week, source, sortKey, ascending, field, newest, explicitSort });
       if (url.href === window.location.href) return;
       try { window.history.replaceState(null, '', url); }
       catch (error) {
@@ -153,12 +159,11 @@ export default function JobTable({ jobs, fetchedAt, checked, initial }: Props) {
     }
     persist();
     return () => window.clearTimeout(retry);
-  }, [search, scope, remote, week, source, sortKey, ascending]);
+  }, [search, scope, remote, week, source, sortKey, ascending, field, newest, explicitSort]);
 
   useEffect(() => {
     function sync() {
       try {
-        setSaved(readSaved());
         setDetail(localStorage.getItem(MODE_KEY) === 'detail');
       } catch { /* Keep in-memory preferences when browser storage is unavailable. */ }
     }
@@ -178,13 +183,7 @@ export default function JobTable({ jobs, fetchedAt, checked, initial }: Props) {
   }, []);
 
   function toggleSaved(job: Job, trigger: HTMLButtonElement) {
-    let ids = new Set(saved);
-    if (!storageUnavailable.current) {
-      try { ids = readSaved(); } catch { /* Use the session copy. */ }
-    }
-    const adding = !ids.has(job.id);
-    if (adding) ids.add(job.id);
-    else ids.delete(job.id);
+    const { adding, persisted } = toggle(job);
     if (!adding && scope === 'Saved') {
       const row = trigger.closest('.listing-row');
       const adjacent = row?.nextElementSibling ?? row?.previousElementSibling;
@@ -192,12 +191,8 @@ export default function JobTable({ jobs, fetchedAt, checked, initial }: Props) {
       if (nextButton) nextButton.focus();
       else requestAnimationFrame(() => (emptyAction.current ?? results.current)?.focus());
     }
-    setSaved(ids);
-    try {
-      localStorage.setItem(SAVED_KEY, JSON.stringify(Array.from(ids)));
-      setMessage((adding ? 'Saved ' : 'Removed ') + job.title);
-    } catch {
-      storageUnavailable.current = true;
+    if (persisted) setMessage((adding ? 'Saved ' : 'Removed ') + job.title);
+    else {
       noticeTrigger.current = trigger;
       setNotice('Saved roles will last for this visit. Browser storage is unavailable.');
     }
@@ -210,17 +205,19 @@ export default function JobTable({ jobs, fetchedAt, checked, initial }: Props) {
   }
 
   function resetFilters() {
-    setSearch(''); setRemote(false); setWeek(false); setSource('all'); setPage(0);
+    setSearch(''); setRemote(false); setWeek(false); setSource('all'); setField('all'); setNewest(false); setPage(0);
     input.current?.focus();
   }
 
-  function sortBy(key: SortKey, asc = sortKey === key ? !ascending : key !== 'postedAt') {
-    setSortKey(key); setAscending(asc); setPage(0);
+  function sortBy(key: SortKey, asc = sortKey === key && !(terms.length && !explicitSort) ? !ascending : key !== 'postedAt') {
+    setExplicitSort(true); setSortKey(key); setAscending(asc); setPage(0);
   }
 
-  const savedCount = jobs.filter(job => saved.has(job.id)).length;
-  const { matches, closeTitles } = useMemo(() => {
-    const candidates = indexed.filter(({ job }) => {
+  const savedCount = indexed.filter(({ job }) => saved.has(job.id)).length;
+  const { matches, closeTitles, newCount } = useMemo(() => {
+    const candidates = indexed.filter(({ job, fields: disciplines }) => {
+      if (scope !== 'Saved' && !liveIds.has(job.id)) return false;
+      if (field !== 'all' && !disciplines.includes(field)) return false;
       if (scope === 'Saved' && !saved.has(job.id)) return false;
       if (scope === 'AI companies' && !job.isAI) return false;
       if (remote && !job.isRemote) return false;
@@ -236,15 +233,19 @@ export default function JobTable({ jobs, fetchedAt, checked, initial }: Props) {
     if (!exactCount && terms.some(term => term.length >= 5)) {
       hits = candidates.filter(({ index }) => jobMatches(index, terms, true));
     }
-    const matches = hits.map(({ job }) => job).sort((a, b) => {
+    const isNew = (job: Job) => previousVisit !== null && (job.firstSeenAt ?? 0) > previousVisit && liveIds.has(job.id);
+    const newCount = hits.filter(({ job }) => isNew(job)).length;
+    if (newest) hits = hits.filter(({ job }) => isNew(job));
+    const ranked = hits.map(({ job, index }) => ({ job, score: terms.length && !explicitSort ? titleRelevance(index, terms, !exactCount) : 0 }));
+    ranked.sort((left, right) => {
+      if (left.score !== right.score) return right.score - left.score;
+      const a = left.job, b = right.job;
       if (sortKey === 'postedAt' && Boolean(a.postedAt) !== Boolean(b.postedAt)) return a.postedAt ? -1 : 1;
-      const left = a[sortKey].toLowerCase();
-      const right = b[sortKey].toLowerCase();
-      const order = left < right ? -1 : left > right ? 1 : 0;
+      const order = a[sortKey].toLowerCase().localeCompare(b[sortKey].toLowerCase(), 'en');
       return ascending ? order : -order;
     });
-    return { matches, closeTitles: !exactCount && matches.length > 0 };
-  }, [indexed, scope, saved, remote, source, week, fetchedAt, search, terms, sortKey, ascending]);
+    return { matches: ranked.map(hit => hit.job), closeTitles: !exactCount && hits.length > 0, newCount };
+  }, [indexed, scope, saved, remote, source, week, fetchedAt, search, terms, sortKey, ascending, field, newest, previousVisit, liveIds, explicitSort]);
   const overview = useMemo(() => ({
     companies: new Set(matches.map(job => job.company)).size,
     remote: matches.filter(job => job.isRemote).length,
@@ -256,7 +257,7 @@ export default function JobTable({ jobs, fetchedAt, checked, initial }: Props) {
   const start = firstPage * PAGE_SIZE;
   const end = Math.min((current + 1) * PAGE_SIZE, matches.length);
   const visible = matches.slice(start, end);
-  const hasFilters = Boolean(search || remote || week || source !== 'all');
+  const hasFilters = Boolean(search || remote || week || source !== 'all' || field !== 'all' || newest);
   const snapshotYear = new Date(fetchedAt).getUTCFullYear();
   const emptySaved = scope === 'Saved' && savedCount === 0;
 
@@ -339,7 +340,9 @@ export default function JobTable({ jobs, fetchedAt, checked, initial }: Props) {
   }
 
   const checkedTime = <time dateTime={new Date(fetchedAt).toISOString()}>{checked} IST</time>;
-  const customSort = sortKey !== 'postedAt' || ascending;
+  const bestMatch = Boolean(terms.length && !explicitSort);
+  const customSort = explicitSort && (terms.length > 0 || sortKey !== 'postedAt' || ascending);
+  const filterCount = Number(week) + Number(source !== 'all') + Number(field !== 'all') + Number(newest);
   return (
     <div className="job-board">
       <BoardHeader>
@@ -351,44 +354,43 @@ export default function JobTable({ jobs, fetchedAt, checked, initial }: Props) {
             {search ? <button type="button" aria-label="Clear search" onClick={() => { setSearch(''); setPage(0); input.current?.focus(); }}><X size={17} /></button> : <kbd aria-hidden="true">/</kbd>}
           </div>
           <div className="board-options">
-            <button type="button" className="board-control" ref={filterTrigger} aria-label={week || source !== 'all' ? `Filters, ${Number(week) + Number(source !== 'all')} active` : 'Filters'} aria-expanded={filtersOpen} title="Filters" aria-controls="board-filters" onClick={() => setFiltersOpen(!filtersOpen)}>
-              <SlidersHorizontal size={16} aria-hidden="true" /><span className="filter-label">Filters</span>{(week || source !== 'all') && <span className="filter-count" aria-hidden="true">{Number(week) + Number(source !== 'all')}</span>}
+            <button type="button" className="board-control" ref={filterTrigger} aria-label={filterCount ? `Filters, ${filterCount} active` : 'Filters'} aria-expanded={filtersOpen} title="Filters" aria-controls="board-filters" onKeyDown={event => {
+              if (filtersOpen && event.key === 'Tab' && !event.shiftKey) {
+                event.preventDefault(); document.getElementById('field-filter')?.focus();
+              }
+            }} onClick={() => setFiltersOpen(!filtersOpen)}>
+              <SlidersHorizontal size={16} aria-hidden="true" /><span className="filter-label">Filters</span>{filterCount > 0 && <span className="filter-count" aria-hidden="true">{filterCount}</span>}
             </button>
           </div>
         </div>
         <div id="board-filters" className="board-filters" hidden={!filtersOpen} onKeyDown={event => {
-          if (event.key === 'Escape') {
+          if (event.key === 'Tab' && event.shiftKey && event.target instanceof HTMLElement && event.target.id === 'field-filter') {
+            event.preventDefault(); filterTrigger.current?.focus();
+          }
+          if (event.key === 'Escape' && !(event.target instanceof HTMLElement && event.target.closest('[role=listbox]'))) {
             setFiltersOpen(false);
             filterTrigger.current?.focus();
           }
         }}>
-          <div className="filter-field">
-            <label htmlFor="portal-filter">Job portal</label>
-            <div className="filter-select">
-              <select id="portal-filter" onKeyDown={event => {
-                if (event.key === 'Tab' && event.shiftKey) {
-                  event.preventDefault();
-                  filterTrigger.current?.focus();
-                }
-              }} value={source} onChange={e => { setSource(e.target.value); setPage(0); }}>
-                <option value="all">All portals</option>
-                {Object.entries(sources).map(([id, name]) => <option key={id} value={id}>{name}</option>)}
-              </select>
-              <ChevronDown size={14} aria-hidden="true" />
-            </div>
-          </div>
-          <div className="filter-field">
-            <label htmlFor="sort-order">Sort by</label>
-            <div className="filter-select">
-              <select id="sort-order" value={sortKey + (ascending ? '+' : '-')} onChange={e => sortBy(e.target.value.slice(0, -1) as SortKey, e.target.value.endsWith('+'))}>
-                {Object.keys(columns).flatMap(id => ['+', '-'].map(dir =>
-                  <option key={id + dir} value={id + dir}>{sortLabel(id as SortKey, dir === '+')}</option>))}
-              </select>
-              <ChevronDown size={14} aria-hidden="true" />
-            </div>
-          </div>
+          <BoardSelect id="field-filter" label="Design field" value={field}
+            options={[{ value: 'all', label: 'All design fields' }, ...Object.entries(fields).map(([value, label]) => ({ value, label }))]}
+            onChange={value => { setField(value as BrowseCriteria['field']); setPage(0); }} />
+          <BoardSelect id="portal-filter" label="Job portal" value={source}
+            options={[{ value: 'all', label: 'All portals' }, ...Object.entries(sources).map(([value, label]) => ({ value, label }))]}
+            onChange={value => { setSource(value); setPage(0); }} />
+          <BoardSelect id="sort-order" label="Sort by" value={bestMatch ? 'best' : sortKey + (ascending ? '+' : '-')}
+            options={[...(terms.length ? [{ value: 'best', label: 'Best match' }] : []),
+              ...(Object.keys(columns) as SortKey[]).flatMap(key => (key === 'postedAt' ? ['-', '+'] : ['+', '-']).map(dir =>
+                ({ value: key + dir, label: sortLabel(key, dir === '+') })))]}
+            onChange={value => {
+              if (value === 'best') { setExplicitSort(false); setSortKey('postedAt'); setAscending(false); setPage(0); }
+              else sortBy(value.slice(0, -1) as SortKey, value.endsWith('+'));
+            }} />
+          <div className="filter-toggles">
           <label className="board-control"><input type="checkbox" checked={week} onChange={e => { setWeek(e.target.checked); setPage(0); }} />Posted in the last 7 days</label>
           <label className="board-control"><input type="checkbox" checked={detail} onChange={toggleDetail} />Show job details</label>
+          </div>
+          <SavedSearches criteria={{ search, scope, field, newest, remote, week, source, sortKey, ascending, explicitSort }} apply={applyCriteria} />
         </div>
       </BoardHeader>
       <main id="jobs" className="board-main">
@@ -413,6 +415,10 @@ export default function JobTable({ jobs, fetchedAt, checked, initial }: Props) {
                   </>}
                 </h2>
                 {closeTitles && <span role="status">Including close title matches</span>}
+                {(newCount > 0 || newest) && <button type="button" className="filter-chip" aria-pressed={newest} onClick={() => { setNewest(!newest); setPage(0); }}>
+                  {newCount} new since last visit {newest && <X size={12} />}</button>}
+                {field !== 'all' && <button type="button" className="filter-chip" aria-label={'Remove ' + fields[field] + ' filter'} onClick={() => { setField('all'); setPage(0); filterTrigger.current?.focus(); }}>
+                  {fields[field]} <X size={12} /></button>}
                 {customSort && <span className="sort-summary">{sortLabel(sortKey, ascending)}</span>}
                 {source !== 'all' && <button type="button" className="filter-chip" aria-label={'Remove ' + sources[source as AtsSource] + ' filter'}
                   onClick={() => { setSource('all'); setPage(0); filterTrigger.current?.focus(); }}>{sources[source as AtsSource]} <X size={12} /></button>}
@@ -422,8 +428,8 @@ export default function JobTable({ jobs, fetchedAt, checked, initial }: Props) {
             </div>
             {visible.length ? <div className="listings-table" data-details={detail} role="table" aria-label="Design job listings">
               <div className="listing-head" role="row">
-                {(Object.keys(columns) as SortKey[]).map(key => <div key={key} role="columnheader" aria-sort={key === sortKey ? (ascending ? 'ascending' : 'descending') : undefined}>
-                  <button type="button" onClick={() => sortBy(key)}>{columns[key]}{key === sortKey && (ascending ? <ArrowUp size={14} aria-hidden="true" /> : <ArrowDown size={14} aria-hidden="true" />)}</button>
+                {(Object.keys(columns) as SortKey[]).map(key => <div key={key} role="columnheader" aria-sort={!bestMatch && key === sortKey ? (ascending ? 'ascending' : 'descending') : undefined}>
+                  <button type="button" onClick={() => sortBy(key)}>{columns[key]}{!bestMatch && key === sortKey && (ascending ? <ArrowUp size={14} aria-hidden="true" /> : <ArrowDown size={14} aria-hidden="true" />)}</button>
                   <span className="compact-column-name">{columns[key]}</span>
                 </div>)}
                 {detail && <div role="columnheader">Job portal</div>}
@@ -436,6 +442,13 @@ export default function JobTable({ jobs, fetchedAt, checked, initial }: Props) {
                 <div role="cell" className="role-cell">
                   <a id={'listing-' + job.id} href={job.url} target="_blank" rel="noopener noreferrer" className="role-title"><span><HighlightText text={job.title} terms={terms} /><span className="title-arrow" aria-hidden="true">{'\u2060'}<ArrowUpRight size={13} /></span></span></a>
                   {detail && job.department && <div className="role-detail">{job.department}</div>}
+                  {detail && job.salary && <div className="salary-detail">Salary · {job.salary}</div>}
+                  {scope === 'Saved' && <div className="saved-role-state">
+                    {!liveIds.has(job.id) && <span>No longer listed</span>}
+                    <button type="button" aria-pressed={Boolean(entries[job.id]?.applied)} aria-label={'Mark as applied: ' + job.title} onClick={() => {
+                      if (!markApplied(job)) { setNotice('Application status will last for this visit.'); }
+                    }}>{entries[job.id]?.applied ? <><Check size={13} />Applied</> : 'Mark as applied'}</button>
+                  </div>}
                 </div>
                 <div role="cell" className="company-cell"><a href={job.companyDomain ? 'https://' + job.companyDomain : job.url} target="_blank" rel="noopener noreferrer">
                   <CompanyAvatar key={job.logoUrl || job.companyDomain} job={job} /><span><HighlightText text={job.company} terms={terms} />{detail && job.batch && <small>{job.batch}</small>}</span>
@@ -459,7 +472,7 @@ export default function JobTable({ jobs, fetchedAt, checked, initial }: Props) {
                   <button type="button" className="save-job" title={saved.has(job.id) ? 'Remove from saved roles' : 'Save role'} aria-label={'Save ' + job.title + ' at ' + job.company} aria-pressed={saved.has(job.id)} onClick={event => toggleSaved(job, event.currentTarget)}>
                     {saved.has(job.id) ? <BookmarkCheck size={17} /> : <Bookmark size={17} />}
                   </button>
-                  <a href={job.url} target="_blank" rel="noopener noreferrer" aria-label={'Apply for ' + job.title + ' at ' + job.company}><span className="apply-label">Apply <ArrowUpRight size={14} aria-hidden="true" /></span></a>
+                  <a style={liveIds.has(job.id) ? undefined : { visibility: 'hidden' }} href={job.url} target="_blank" rel="noopener noreferrer" aria-label={'Apply for ' + job.title + ' at ' + job.company}><span className="apply-label">Apply <ArrowUpRight size={14} aria-hidden="true" /></span></a>
                 </div></div>
               </div>)}</div>
             </div> : <div className="board-empty">

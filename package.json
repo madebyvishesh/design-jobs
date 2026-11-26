@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@radix-ui/react-select": "^2.4.1",
     "@vercel/blob": "^2.4.0",
     "@vercel/functions": "^3.11.4",
     "lucide-react": "^1.16.0",

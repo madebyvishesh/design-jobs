@@ -1,7 +1,12 @@
 import type { Job, AtsSource } from '@/types/job';
 import { isAIFromCurated } from './curatedAI';
 
+import { salaryRange } from '../jobPay';
+
 interface AshbyJob {
+  workplaceType?: string;
+  secondaryLocations?: { location?: string }[];
+  compensation?: { summaryComponents?: { compensationType: string; minValue?: number; maxValue?: number; currencyCode?: string; interval?: string }[] };
   id: string;
   title: string;
   team?: string;
@@ -17,7 +22,7 @@ async function fetchAshbyJobs(slug: string, name: string, domain: string, batch?
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 28000);
   try {
-    const res = await fetch(`https://api.ashbyhq.com/posting-api/job-board/${slug}`, {
+    const res = await fetch(`https://api.ashbyhq.com/posting-api/job-board/${slug}?includeCompensation=true`, {
       signal: controller.signal,
       next: { revalidate: 3600 },
     });
@@ -28,8 +33,10 @@ async function fetchAshbyJobs(slug: string, name: string, domain: string, batch?
       title: job.title,
       company: name,
       companyDomain: domain,
-      location: job.location ?? '',
-      isRemote: job.isRemote ?? false,
+      location: Array.from(new Set([job.location, ...(job.secondaryLocations ?? []).map(place => place.location)].filter(Boolean))).join(' · '),
+      salary: job.compensation?.summaryComponents?.filter(part => part.compensationType === 'Salary')
+        .map(part => salaryRange(part.minValue, part.maxValue, part.currencyCode, part.interval)).filter(Boolean).join(' / ') || undefined,
+      isRemote: job.workplaceType ? job.workplaceType === 'Remote' : job.isRemote ?? false,
       url: job.applyUrl ?? job.jobUrl ?? `https://jobs.ashbyhq.com/${slug}/${job.id}`,
       postedAt: job.publishedAt ?? new Date(0).toISOString(),
       department: job.team ?? '',

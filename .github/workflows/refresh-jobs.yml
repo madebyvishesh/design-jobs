@@ -11,6 +11,7 @@ on:
 jobs:
   refresh:
     if: github.event.schedule != '17 3 1,15 * *'
+    concurrency: design-jobs-snapshot
     runs-on: ubuntu-latest
     timeout-minutes: 10
 

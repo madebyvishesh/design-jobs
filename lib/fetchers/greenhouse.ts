@@ -1,10 +1,15 @@
 import type { Job, AtsSource } from '@/types/job';
 import { isAIFromCurated } from './curatedAI';
 
+import { greenhouseSalary } from '../jobPay';
+
 interface GHJob {
+  content?: string;
+  first_published?: string;
   id: number;
   title: string;
   departments?: Array<{ name: string }>;
+  location?: { name?: string };
   offices?: Array<{ name: string }>;
   absolute_url?: string;
   updated_at?: string;
@@ -21,7 +26,7 @@ async function fetchGreenhouseJobs(slug: string, name: string, domain: string, b
     if (!res.ok) return [];
     const data = await res.json() as { jobs?: GHJob[] };
     return (data.jobs ?? []).map(job => {
-      const loc = job.offices?.[0]?.name ?? '';
+      const loc = job.location?.name || (job.offices ?? []).map(office => office.name).filter(Boolean).join(' · ');
       return {
         id: `gh-${slug}-${job.id}`,
         title: job.title,
@@ -30,8 +35,9 @@ async function fetchGreenhouseJobs(slug: string, name: string, domain: string, b
         location: loc,
         isRemote: loc.toLowerCase().includes('remote'),
         url: job.absolute_url ?? `https://boards.greenhouse.io/${slug}/jobs/${job.id}`,
-        // updated_at is the last-modified date (Greenhouse public API doesn't expose original posting date)
-        postedAt: job.updated_at ?? new Date(0).toISOString(),
+        postedAt: job.first_published || job.updated_at || new Date(0).toISOString(),
+        dateKind: job.first_published ? 'posted' as const : 'updated' as const,
+        salary: greenhouseSalary(job.content),
         department: job.departments?.[0]?.name ?? '',
         ats: 'greenhouse' as AtsSource,
         sources: ['greenhouse' as AtsSource],

@@ -5,7 +5,7 @@
  * Usage: npx tsx scripts/fetch-and-cache.ts
  * Required env: BLOB_READ_WRITE_TOKEN
  */
-import { put } from '@vercel/blob';
+import { setCachedJobs } from '../lib/jobsCache';
 import { fetchAllDesignJobs } from '../lib/fetchAllJobs';
 
 async function main() {
@@ -31,16 +31,7 @@ async function main() {
 
   const payload = { aiJobs, allJobs, fetchedAt: Date.now() };
 
-  const blob = await put('design-jobs-cache.json', JSON.stringify(payload), {
-    access: 'public',
-    addRandomSuffix: false,
-    allowOverwrite: true,
-    cacheControlMaxAge: 60,
-    contentType: 'application/json',
-    token,
-  });
-
-  console.log(`Cache written to: ${blob.url}`);
+  await setCachedJobs(payload);
   console.log('Done.');
 }
 

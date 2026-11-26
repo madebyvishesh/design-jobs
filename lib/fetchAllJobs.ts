@@ -40,6 +40,7 @@ function deduplicateAndMergeSources(jobs: Job[]): Job[] {
           : mergedSources.includes('yc') ? 'yc'
           : 'remotive',
         // Pull batch badge and logo from YC entry since it has richer company metadata
+        salary: urlSource.salary || existing.salary || job.salary,
         batch: ycEntry?.batch ?? urlSource.batch,
         logoUrl: ycEntry?.logoUrl ?? urlSource.logoUrl,
         ...preferredDate(existing, job),

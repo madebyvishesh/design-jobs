@@ -83,3 +83,13 @@ export function highlightWords(text: string, terms: string[]) {
   if (cursor < text.length) parts.push({ value: text.slice(cursor), matched: false });
   return parts;
 }
+
+export function titleRelevance(index: ReturnType<typeof indexJob>, terms: string[], allowTitleTypo = false) {
+  const query = terms.filter(term => term !== 'remote');
+  if (!query.length) return 0;
+  const title = new Set(index.title);
+  const exact = query.filter(term => title.has(term) || (allowTitleTypo && index.title.some(word => nearTitleWord(term, word)))).length;
+  if (!exact) return 0;
+  if (exact === title.size && exact === query.length) return 1000;
+  return exact * 10 + Number(exact === title.size);
+}

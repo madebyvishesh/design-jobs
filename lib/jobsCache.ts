@@ -1,6 +1,9 @@
 import type { Job } from '@/types/job';
 
+import { withFirstSeen } from './firstSeen';
+
 export interface JobsPayload {
+  firstSeen?: Record<string, number>;
   aiJobs: Job[];
   allJobs: Job[];
   fetchedAt: number;
@@ -39,17 +42,13 @@ export async function getCachedJobs(): Promise<JobsPayload | null> {
 }
 
 export async function setCachedJobs(payload: JobsPayload): Promise<void> {
-  if (!isBlobConfigured()) return;
-  try {
-    const { put } = await import('@vercel/blob');
-    await put(BLOB_FILENAME, JSON.stringify(payload), {
-      access: 'public',
-      addRandomSuffix: false,
-      allowOverwrite: true,
-      cacheControlMaxAge: 60,
-      contentType: 'application/json',
-    });
-  } catch {
-    // Silently skip — don't crash the page if Blob isn't linked yet
-  }
+  const { get, put } = await import('@vercel/blob');
+  const previous = await get(BLOB_FILENAME, { access: 'public' });
+  const history: JobsPayload | null = previous?.stream ? await new Response(previous.stream).json() : null;
+  if (history && history.fetchedAt > payload.fetchedAt) return;
+  const snapshot = withFirstSeen(payload, history);
+  await put(BLOB_FILENAME, JSON.stringify(snapshot), {
+    access: 'public', addRandomSuffix: false, allowOverwrite: Boolean(previous),
+    ifMatch: previous?.blob.etag, cacheControlMaxAge: 60, contentType: 'application/json',
+  });
 }

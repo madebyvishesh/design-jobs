@@ -23,7 +23,7 @@ async function fetchSnapshot() {
   return { ...jobs, fetchedAt: Date.now() };
 }
 
-const getFallback = unstable_cache(fetchSnapshot, ['listings-fallback-v2'], { revalidate: 1800 });
+const getFallback = unstable_cache(fetchSnapshot, ['listings-fallback-v3'], { revalidate: 1800 });
 let pendingFetch: ReturnType<typeof fetchSnapshot> | undefined;
 
 const getListings = cache(async () => {
@@ -44,7 +44,9 @@ const getListings = cache(async () => {
       new Promise<null>(resolve => { deadline = setTimeout(() => resolve(null), published ? 150 : 12000); }),
     ]);
     if (published && (!fallback || published.fetchedAt >= fallback.fetchedAt)) return published;
-    return fallback;
+    if (!fallback || !published?.firstSeen) return fallback;
+    const observed = (job: typeof fallback.allJobs[number]) => ({ ...job, firstSeenAt: published.firstSeen?.[job.id] });
+    return { ...fallback, aiJobs: fallback.aiJobs.map(observed), allJobs: fallback.allJobs.map(observed) };
   } finally {
     clearTimeout(deadline);
   }
