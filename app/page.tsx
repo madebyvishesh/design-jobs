@@ -6,8 +6,7 @@ import RefreshListings from '@/components/RefreshListings';
 import JobTable from '@/components/JobTable';
 import { classifyDate } from '@/lib/jobDates';
 import { isDesignRole } from '@/lib/filterJobs';
-import ThemeToggle from '@/components/ThemeToggle';
-import { Layers2 } from 'lucide-react';
+import BoardHeader from '@/components/BoardHeader';
 
 export const revalidate = 0;
 export const maxDuration = 60;
@@ -44,12 +43,15 @@ const getListings = cache(async () => {
 async function JobsContent() {
   const listings = await getListings();
   if (!listings) return (
-    <div className="board-width board-empty" role="status">
-      <h2>Listings are temporarily unavailable</h2>
-      <p>Try again in a few minutes.</p>
-      <a className="board-control" href="/">Retry</a>
-      <RefreshListings fetchedAt={0} interval={refreshInterval} />
-    </div>
+    <>
+      <BoardHeader />
+      <main id="jobs" className="board-width board-empty" role="status">
+        <h2>Listings are temporarily unavailable</h2>
+        <p>Try again in a few minutes.</p>
+        <a className="board-control" href="/">Retry</a>
+        <RefreshListings fetchedAt={0} interval={refreshInterval} />
+      </main>
+    </>
   );
   const jobs = [...listings.aiJobs, ...listings.allJobs]
     .filter(job => isDesignRole(job.title, job.department))
@@ -70,18 +72,9 @@ async function JobsContent() {
 export default function Home() {
   return (
     <div className="board-shell">
-      <header className="board-header">
-        <div className="board-width board-masthead">
-          <h1><span className="board-mark" aria-hidden="true"><Layers2 size={19} strokeWidth={1.8} /></span>Design Jobs</h1>
-          <ThemeToggle />
-        </div>
-      </header>
-      <main id="jobs" className="board-main">
-        <Suspense fallback={<p role="status" className="board-width board-loading">Loading listings…</p>}>
-          <JobsContent />
-        </Suspense>
-      </main>
-      <footer className="board-width board-footer">Listings from YC, Ashby, Greenhouse, Workday, Lever and Remotive.</footer>
+      <Suspense fallback={<><BoardHeader /><main id="jobs" className="board-width board-loading" role="status">Loading listings…</main></>}>
+        <JobsContent />
+      </Suspense>
     </div>
   );
 }
