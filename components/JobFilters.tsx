@@ -115,10 +115,10 @@ export default function JobFilters({
             onChange={(source) => change({ source })}
           />
           <fieldset className="target-pay">
-            <legend>Salary target</legend>
+            <legend className="sr-only">Salary target</legend>
             <div>
               <label>
-                Range reaches
+                Salary target
                 <input
                   id="pay-target"
                   type="number"
@@ -148,7 +148,7 @@ export default function JobFilters({
               />
               <BoardSelect
                 id="pay-period"
-                label="Per"
+                label="Pay period"
                 value={c.period}
                 options={options(payPeriods)}
                 onChange={(period) => change({ period })}

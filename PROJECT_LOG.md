@@ -71,3 +71,4 @@ A public board for finding and saving design vacancies. Next.js and React serve 
 
 - Moved View beside Filters in the search toolbar. Both controls use the same alignment and touch sizing. The results row now groups the browse tabs with Remote and leaves the count at the opposite edge. View opens below its trigger and supports outside dismissal and Escape.
 - Refined expanded job details with the full role title, labeled employer facts, readable verification dates and separate application and utility actions. Phone facts use label/value rows. Saved roles retain their private note.
+- Aligned the desktop and tablet filter controls, salary inputs and saved-search actions on a common grid. On phones, field names and selected values share a row. Opening an inline picker spans the sheet width, and salary controls keep their own labeled row.
