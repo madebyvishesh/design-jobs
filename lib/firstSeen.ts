@@ -10,7 +10,7 @@ export function withFirstSeen(next: JobsPayload, previous: JobsPayload | null): 
   }
   const aiJobs = stamp(next.aiJobs);
   const allJobs = stamp(next.allJobs);
-  const failed = next.report?.filter(board => board.status === 'unavailable') ?? [];
+  const failed = next.report?.filter(board => board.status === 'unavailable' || board.status === 'partial') ?? [];
   if (previous && failed.length) {
     const seen = new Set([...aiJobs, ...allJobs].map(job => job.id));
     const keys = new Set(failed.map(b => b.source + ':' + b.board));

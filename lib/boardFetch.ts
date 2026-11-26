@@ -4,9 +4,18 @@ export interface BoardReport {
   source: AtsSource;
   board: string;
   domain: string;
-  status: 'ok' | 'missing' | 'unavailable';
+  status: 'ok' | 'missing' | 'unavailable' | 'partial';
   received: number;
   reason?: string;
+  feed?: string;
+  indexed?: number;
+}
+
+export interface BoardListings {
+  jobs: Job[];
+  feed: string;
+  indexed: number;
+  incomplete?: string;
 }
 
 export class BoardMissing extends Error {}
@@ -61,7 +70,7 @@ export async function readBoardJson<T>(url: string, init: RequestInit = {}, time
 
 export async function collectBoards<T>(
   source: AtsSource, boards: T[], identify: (board: T) => { board: string; domain: string },
-  fetchBoard: (board: T) => Promise<Job[]>, report: BoardReport[], concurrency = 24,
+  fetchBoard: (board: T) => Promise<Job[] | BoardListings>, report: BoardReport[], concurrency = 24,
 ) {
   let cursor = 0;
   const results: Job[][] = [];
@@ -71,9 +80,12 @@ export async function collectBoards<T>(
       const board = boards[i];
       const meta = { source, ...identify(board) };
       try {
-        const jobs = await fetchBoard(board);
+        const result = await fetchBoard(board);
+        const feed = Array.isArray(result) ? undefined : result;
+        const jobs = Array.isArray(result) ? result : result.jobs;
         results[i] = jobs.map(job => ({ ...job, boardKey: source + ':' + meta.board }));
-        report.push({ ...meta, status: 'ok', received: jobs.length });
+        report.push({ ...meta, status: feed?.incomplete ? 'partial' : 'ok', received: jobs.length,
+          feed: feed?.feed, indexed: feed?.indexed, reason: feed?.incomplete });
       } catch (error) {
         report.push({ ...meta, status: error instanceof BoardMissing ? 'missing' : 'unavailable',
           received: 0, reason: error instanceof Error ? error.message.slice(0,120) : 'Request failed' });

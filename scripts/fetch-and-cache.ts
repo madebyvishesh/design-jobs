@@ -31,7 +31,7 @@ async function main() {
 
   for (const source of Array.from(new Set(report.map(b => b.source)))) {
     const boards = report.filter(b => b.source === source);
-    console.log(source, JSON.stringify({ boards: boards.length, ok: boards.filter(b => b.status === 'ok').length, missing: boards.filter(b => b.status === 'missing').length, unavailable: boards.filter(b => b.status === 'unavailable').length, received: boards.reduce((n,b) => n + b.received,0) }));
+    console.log(source, JSON.stringify({ boards: boards.length, ok: boards.filter(b => b.status === 'ok').length, partial: boards.filter(b => b.status === 'partial').length, missing: boards.filter(b => b.status === 'missing').length, unavailable: boards.filter(b => b.status === 'unavailable').length, received: boards.reduce((n,b) => n + b.received,0) }));
   }
   const payload = { aiJobs, allJobs, report, fetchedAt: Date.now() };
 
