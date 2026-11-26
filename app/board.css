@@ -47,6 +47,7 @@
 .board-search button,.action-cell :is(button,a),.board-pages button,.board-control,.board-footer a,.board-scopes button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .board-search button { min-width: 40px; height: 100%; }
 .board-control,.board-pages button { font-size: 13px; font-weight: 530; min-height: 42px; padding-inline: 13px; background: var(--surface); border: 1px solid var(--line); }
+.board-options { display:flex;align-items:center;gap:8px;flex:none; }
 .board-options .board-control { min-height: 38px; height: 38px; background: var(--soft); border: 0; }
 .board-options .board-control[aria-expanded=true] { color: var(--surface); background: var(--ink); }
 .action-cell button[aria-pressed=true] { color: var(--ink); }
@@ -136,7 +137,7 @@
 @media (hover:hover) and (pointer:fine) {
   .role-title:hover,.company-cell a:hover,.board-footer a:hover { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
   .listing-row:hover { background: color-mix(in srgb, var(--soft) 68%, var(--surface)); }
-  .board-pages button:enabled:hover,.board-options button:hover,.action-cell :is(a,button):hover,.board-empty .board-control:hover,.board-masthead .theme-toggle:hover { background: var(--soft); }
+  .board-pages button:enabled:hover,.board-options > button:hover,.action-cell :is(a,button):hover,.board-empty .board-control:hover,.board-masthead .theme-toggle:hover { background: var(--soft); }
   .action-cell :is(a,button):hover,.listing-head button:hover,.board-scopes button:hover,.filter-chip:hover { color: var(--accent); }
   .listing-row:hover .apply-label,.action-cell a:focus-visible .apply-label { background: var(--surface); }
   .board-scopes button[aria-pressed=true]:hover { color: var(--surface); }
@@ -248,8 +249,8 @@
 }
 @media (prefers-reduced-motion:no-preference) {
   .theme-toggle svg { transition: transform 180ms cubic-bezier(.2,.8,.2,1), opacity 140ms ease-out; }
-  .board-options button,.board-pages button,.action-cell :is(a,button) { transition: transform 120ms ease-out; }
-  .board-options button:active,.board-pages button:enabled:active,.action-cell :is(a,button):active { transform: scale(.98); }
+   .board-options > button,.board-pages button,.action-cell :is(a,button) { transition: transform 120ms ease-out; }
+  .board-options > button:active,.board-pages button:enabled:active,.action-cell :is(a,button):active { transform: scale(.98); }
 }
 @media (prefers-reduced-motion:reduce) {
   .board-shell *, .board-shell *::before, .board-shell *::after { animation: none !important; transition: none !important; }
@@ -321,11 +322,39 @@ html.theme-reveal::view-transition { pointer-events: none; }
 .field-options label, .field-options button { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 36px; padding: 6px 9px; border-radius: 8px; cursor: pointer; }
 .field-options span { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--subtle); }
 .field-options :is(label,button):focus-within { background: var(--soft); }
-.job-detail-panel { grid-column: 1 / -1; padding: 12px 16px; margin-block: 6px; background: var(--soft); border-radius: var(--panel); font-size: 14px; }
-.job-detail-panel h3 { font-weight: 600; }
-.job-detail-panel p { color: var(--subtle); line-height: 1.5; }
-.detail-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 0 16px; }
-.detail-actions :is(a,button) { display: inline-flex; gap: 4px; align-items: center; min-height: 36px; text-decoration: underline; text-underline-offset: 3px; }
+.job-detail-panel {
+  grid-column: 1 / -1; min-width: 0; margin: 6px 0 12px;
+  padding: clamp(16px, 2vw, 26px); border-radius: var(--panel); background: var(--soft);
+  display: grid; gap: 16px; font-size: 14px; overflow-wrap: anywhere;
+}
+.detail-company,.detail-company button,.detail-dates,.detail-actions,.detail-utilities,
+.detail-actions :is(a,button) { display: flex; align-items: center; }
+.detail-company { flex-wrap: wrap; gap: 0 12px; color: var(--subtle); font-size: 13px; }
+.detail-company button { gap: 2px; min-height: 32px; text-decoration: underline; text-underline-offset: 3px; }
+.detail-heading h3 { max-width: 60ch; margin-top: 2px; font-size: clamp(18px, 1.6vw, 23px); line-height: 1.25; font-weight: 580; letter-spacing: -.025em; }
+.detail-facts { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 14px 32px; }
+.detail-facts dt,.detail-dates,.private-note small { color: var(--subtle); font-size: 12px; }
+.detail-facts dd { margin-top: 3px; line-height: 1.45; white-space: pre-line; }
+.detail-dates { flex-wrap: wrap; gap: 2px 14px; font-variant-numeric: tabular-nums; }
+.detail-actions { flex-wrap: wrap; gap: 4px 8px; padding-top: 12px; border-top: 1px solid var(--line); }
+.detail-actions :is(a,button) { justify-content: center; gap: 6px; min-height: 36px; border-radius: var(--control-radius); font-size: 13px; }
+.detail-apply,.detail-share { padding: 0 14px; font-weight: 550; }
+.detail-apply { background: var(--ink); color: var(--surface); }
+.detail-share { background: var(--surface); }
+.detail-utilities { margin-left: auto; flex-wrap: wrap; gap: 4px 12px; }
+.detail-utilities button { color: var(--subtle); }
+@media (hover:hover) {
+  .detail-utilities button:hover,.detail-company button:hover { color: var(--ink); text-decoration: underline; }
+  .detail-actions .detail-share:hover { background: var(--tint); }
+}
+@media (max-width:800px) { .detail-facts { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px 20px; } }
+@media (max-width:679px) {
+  .job-detail-panel { padding: 16px; gap: 14px; }
+  .detail-facts { grid-template-columns: minmax(0,1fr); gap: 8px; }
+  .detail-facts > div { display: grid; grid-template-columns: minmax(5rem, .8fr) minmax(0, 1.5fr); gap: 10px; align-items: baseline; }
+  .detail-facts dd { margin: 0; }
+  .detail-utilities { flex-basis: 100%; margin-left: 0; }
+}
 .row-disclosure[aria-expanded=true] svg { transform: rotate(180deg); }
 .page-progress { align-self: center; color: var(--subtle); font-size: 13px; }
 @media (hover:hover) { .field-options :is(label,button):hover { background: var(--soft); } }
@@ -364,7 +393,7 @@ html.theme-reveal::view-transition { pointer-events: none; }
 .primary-filters .filter-field,.secondary-filters .filter-field,.compare-pair .filter-field,.view-options .filter-field {display:flex;flex-direction:column;align-items:stretch;gap:5px;min-width:0;}
 .primary-filters .board-select-trigger,.secondary-filters .board-select-trigger,.compare-pair .board-select-trigger {width:100%;}
 .more-filters {margin-top:10px;}
-.more-filters summary,.view-options summary {width:fit-content;cursor:pointer;font-size:13px;font-weight:550;padding:8px 0;}
+.more-filters summary {width:fit-content;cursor:pointer;font-size:13px;font-weight:550;padding:8px 0;}
 .secondary-filters {padding:8px 0;}
 .target-pay {grid-column:1/-1;min-width:0;}
 .target-pay legend {font-size:13px;font-weight:550;margin-bottom:6px;}
@@ -378,7 +407,7 @@ html.theme-reveal::view-transition { pointer-events: none; }
 .location-options p {font-size:12px;color:var(--subtle);padding:6px 9px;}
 .location-options input {position:sticky;top:0;z-index:1;}
 .view-options {position:relative;font-size:13px;}
-.view-options>div {position:absolute;top:100%;right:0;z-index:8;min-width:200px;background:var(--surface);border:1px solid var(--line);border-radius:var(--panel);padding:12px;box-shadow:0 6px 20px #0002;}
+.view-options>div {position:absolute;top:calc(100% + 6px);right:0;z-index:8;width:220px;max-width:calc(100vw - 32px);background:var(--surface);border:1px solid var(--line);border-radius:var(--panel);padding:12px;box-shadow:0 6px 20px #0002;}
 .sheet-heading,.sheet-footer {display:flex;align-items:center;justify-content:space-between;gap:12px;}
 .sheet-heading h2,.compare-inner h2 {font-weight:600;font-size:19px;}
 .sheet-heading button {min-height:44px;padding-inline:8px;color:var(--subtle);}
@@ -398,7 +427,8 @@ body:has(:is(.filter-sheet,.compare-dialog)[open]) {overflow:hidden;}
 .sheet-scroll .filter-toggles {display:flex;flex-wrap:wrap;}
 .sheet-scroll .filter-toggles label {min-height:44px;}
 .sheet-scroll .board-select-trigger {min-height:44px;}
-.private-note {max-width:36rem;margin:8px 0;}
+.private-note {width:100%;max-width:36rem;}
+.private-note > span {display:flex;align-items:baseline;gap:8px;}
 .private-note small {color:var(--subtle);}
 .private-note textarea {min-height:64px;resize:vertical;}
 .compare-toolbar {margin:0 0 10px;}
@@ -416,20 +446,21 @@ body:has(:is(.filter-sheet,.compare-dialog)[open]) {overflow:hidden;}
 .shared-role dl {display:grid;gap:14px;margin-bottom:24px;}
 .shared-role dt {font-size:12px;color:var(--subtle);}
 @media (max-width:679px) {
-  .view-options {width:fit-content;margin-inline-start:auto;}
-  .view-options>div {left:auto;right:0;}
   .compare-dialog .board-select-trigger>span:first-child {display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;white-space:normal;word-break:normal;}
 }
 @media(pointer:coarse),(max-width:679px) {
   .target-pay input,.private-note textarea,.location-options input {font-size:16px;}
-  .more-filters summary,.view-options summary {min-height:44px;align-content:center;}
+  .more-filters summary,.view-options label:has(input) {min-height:44px;align-content:center;}
 }
 
 .sheet-scroll .board-select-trigger {background:var(--soft);}
 .sheet-scroll fieldset.field-options {max-height:none;overflow:visible;}
-.more-filters summary,.view-options summary {display:inline-flex;align-items:center;gap:5px;list-style:none;}
+.more-filters summary {display:inline-flex;align-items:center;gap:5px;list-style:none;}
+.view-options summary {list-style:none;cursor:pointer;}
+.view-options summary:focus-visible {outline:2px solid var(--accent);outline-offset:2px;}
+.board-options .view-options[open] > summary {color:var(--surface);background:var(--ink);}
 :is(.more-filters,.view-options)>summary::-webkit-details-marker {display:none;}
-:is(.more-filters,.view-options)[open]>summary svg {transform:rotate(180deg);}
+.more-filters[open]>summary svg {transform:rotate(180deg);}
 
 .board-notice span {min-width:0;overflow-wrap:anywhere;}
 

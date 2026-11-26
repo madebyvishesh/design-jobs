@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpRight, Bookmark, BookmarkCheck, Check, ChevronDown, Copy, Globe2, MapPin, Search, SlidersHorizontal, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpRight, Bookmark, BookmarkCheck, Check, ChevronDown, Copy, EyeOff, Globe2, Link2, MapPin, Search, SlidersHorizontal, Undo2, X } from 'lucide-react';
 import { columns, sources, scopes, readBrowseParams, writeBrowseParams, type SortKey, type Scope, type BrowseCriteria } from '@/lib/browseParams';
 import { listingKnownSince } from '@/lib/listingAge';
 import { remoteLocation } from '@/lib/remoteLocation';
@@ -10,6 +10,7 @@ import { listedPlaces, normalizeListing } from '@/lib/listingText';
 import { countries, levels, remoteBadge } from '@/lib/discoveryFilters';
 import { useHiddenRoles } from './useHiddenRoles';
 import JobFilters from './JobFilters';
+import ViewOptions from './ViewOptions';
 import CompareSaved from './CompareSaved';
 import { arrangements, employmentTypes, arrangementOf, employmentOf } from '@/lib/workFilters';
 import ListingHint from './ListingHint';
@@ -474,6 +475,18 @@ export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked,
             }} onClick={() => setFiltersOpen(!filtersOpen)}>
               <SlidersHorizontal size={16} aria-hidden="true" /><span className="filter-label">Filters</span>{filterCount > 0 && <span className="filter-count" aria-hidden="true">{filterCount}</span>}
             </button>
+            <ViewOptions onOpen={() => setFiltersOpen(false)}>
+              <BoardSelect id="sort-order" label="Sort by" value={bestMatch ? 'best' : sortKey + (ascending ? '+' : '-')}
+                options={[...(terms.length ? [{ value: 'best', label: 'Best match' }] : []),
+                  ...(Object.keys(columns) as SortKey[]).flatMap(key => (key === 'postedAt' ? ['-', '+'] : ['+', '-']).map(dir =>
+                    ({ value: key + dir, label: sortLabel(key, dir === '+') })))]}
+                onChange={value => {
+                  if (value === 'best') { setExplicitSort(false); setSortKey('postedAt'); setAscending(false); setPage(0); }
+                  else sortBy(value.slice(0, -1) as SortKey, value.endsWith('+'));
+                }} />
+                <label><input type="checkbox" checked={detail} onChange={toggleDetail}/>Show job details</label>
+                {hidden.length>0 && <label><input type="checkbox" checked={showHidden} onChange={e=>{setShowHidden(e.target.checked);setScope('All roles');setPage(0);}}/>View hidden roles ({hidden.length})</label>}
+            </ViewOptions>
           </div>
         </div>
         {filtersOpen && <JobFilters criteria={criteria} count={countFor} places={places} currencies={currencies} hasApplied={applied.size>0}
@@ -494,18 +507,6 @@ export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked,
                 </div>
                 <label className="board-control remote-control"><input type="checkbox" checked={remote} onChange={e => { setRemote(e.target.checked); if(e.target.checked) setExtra({...extra,arrangement:''}); if (!e.target.checked) {setCountry('');setUnspecified(false);} setPage(0); }} aria-label="Remote only" />Remote</label>
               </div>
-              <details className="view-options"><summary>View<ChevronDown size={14} aria-hidden="true" /></summary><div>
-          <BoardSelect id="sort-order" label="Sort by" value={bestMatch ? 'best' : sortKey + (ascending ? '+' : '-')}
-            options={[...(terms.length ? [{ value: 'best', label: 'Best match' }] : []),
-              ...(Object.keys(columns) as SortKey[]).flatMap(key => (key === 'postedAt' ? ['-', '+'] : ['+', '-']).map(dir =>
-                ({ value: key + dir, label: sortLabel(key, dir === '+') })))]}
-            onChange={value => {
-              if (value === 'best') { setExplicitSort(false); setSortKey('postedAt'); setAscending(false); setPage(0); }
-              else sortBy(value.slice(0, -1) as SortKey, value.endsWith('+'));
-            }} />
-                <label><input type="checkbox" checked={detail} onChange={toggleDetail}/>Show job details</label>
-                {hidden.length>0 && <label><input type="checkbox" checked={showHidden} onChange={e=>{setShowHidden(e.target.checked);setScope('All roles');setPage(0);}}/>View hidden roles ({hidden.length})</label>}
-              </div></details>
               <div className="results-summary">
                 <h2 tabIndex={-1} ref={results} aria-live="polite" aria-atomic="true">
                   <span>{matches.length ? (start + 1) + '–' + end + ' of ' + matches.length + (matches.length === 1 ? ' role' : ' roles') : '0 matching roles'}</span>
@@ -590,23 +591,39 @@ export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked,
                   <a style={liveIds.has(job.id) ? undefined : { visibility: 'hidden' }} href={job.url} target="_blank" rel="noopener noreferrer" aria-label={'Apply for ' + job.title + ' at ' + job.company}><span className="apply-label">Apply <ArrowUpRight size={14} aria-hidden="true" /></span></a>
                 </div></div>
                 {opened === job.id && <div role="cell" id={'detail-' + job.id} className="job-detail-panel">
-                  <h3>{job.title}</h3>
-                  <p>{job.location || 'Location unavailable'}</p>
-                  <p>{[arrangements[arrangementOf(job)],...employmentOf(job).map(t=>employmentTypes[t])].filter(v=>v!=='Unspecified').join(' · ')}</p>
-                  {scope==='Saved' && saved.has(job.id) && <label className="private-note">Private note <small>On this device</small>
+                  <div className="detail-heading">
+                    <div className="detail-company">
+                      <span>{job.company}</span>
+                      {company !== job.company && (companyCounts.get(job.company) ?? 0) > 1 &&
+                        <button onClick={() => browseCompany(job.company)} aria-label={'See all '+companyCounts.get(job.company)+' roles at '+job.company}>
+                          {companyCounts.get(job.company)} open roles <ArrowUpRight size={12} aria-hidden="true" />
+                        </button>}
+                    </div>
+                    <h3>{job.title}</h3>
+                  </div>
+                  <dl className="detail-facts">
+                    <div><dt>Location</dt><dd>{job.location || 'Not listed'}</dd></div>
+                    {job.salary && <div><dt>Listed pay</dt><dd>{job.salary}</dd></div>}
+                    {job.department && <div><dt>Team</dt><dd>{job.department}</dd></div>}
+                    {arrangementOf(job) !== 'unknown' && <div><dt>Work arrangement</dt><dd>{arrangements[arrangementOf(job)]}</dd></div>}
+                    {!employmentOf(job).includes('unknown') && <div><dt>Employment type</dt><dd>{employmentOf(job).map(t=>employmentTypes[t]).join(' / ')}</dd></div>}
+                    <div><dt>Job portal</dt><dd>{listingSources(job).map(id => sources[id]).join(', ')}</dd></div>
+                  </dl>
+                  {scope==='Saved' && saved.has(job.id) && <label className="private-note"><span>Private note <small>On this device</small></span>
                     <textarea rows={2} value={entries[job.id]?.note||''} placeholder="Add a note" onChange={e=>{
                       if(!saveNote(job.id,e.target.value))setNotice('Note kept for this visit. Device storage is unavailable.');
                     }}/></label>}
-                  {(job.department || job.salary) && <p>{[job.department, job.salary].filter(Boolean).join(' · ')}</p>}
-                  <p><ListingDate job={job} currentYear={snapshotYear} /> · {listingSources(job).map(id => sources[id]).join(', ')}</p>
-                  {job.lastVerifiedAt && <p>Last verified {new Date(job.lastVerifiedAt).toISOString().slice(0, 10)}</p>}
+                  <div className="detail-dates">
+                    <span><ListingDate job={job} currentYear={snapshotYear} /></span>
+                    {job.lastVerifiedAt && <span>Last verified <time dateTime={new Date(job.lastVerifiedAt).toISOString()}>{new Date(job.lastVerifiedAt).toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric', timeZone:'UTC'})}</time></span>}
+                  </div>
                   <div className="detail-actions">
-                    {liveIds.has(job.id) && <a href={job.url} target="_blank" rel="noopener noreferrer">Apply <ArrowUpRight size={14} /></a>}
-                    <button onClick={event => copy(job, event.currentTarget)}>{copiedId === job.id ? 'Link copied' : 'Copy application link'}</button>
-                    {liveIds.has(job.id) && <button onClick={e=>share(job,e.currentTarget)}>Share role</button>}
-                    {company !== job.company && (companyCounts.get(job.company) ?? 0) > 1 &&
-                      <button onClick={() => browseCompany(job.company)}>See all {companyCounts.get(job.company)} roles at {job.company}</button>}
-                    <button onClick={() => changeHidden(job)}>{hiddenIds.has(job.id) ? 'Restore role' : 'Hide this role'}</button>
+                    {liveIds.has(job.id) && <a className="detail-apply" href={job.url} target="_blank" rel="noopener noreferrer">Apply <ArrowUpRight size={15} aria-hidden="true" /></a>}
+                    {liveIds.has(job.id) && <button className="detail-share" onClick={e=>share(job,e.currentTarget)}><Link2 size={15} aria-hidden="true" />Share role</button>}
+                    <div className="detail-utilities">
+                      <button onClick={event => copy(job, event.currentTarget)}>{copiedId === job.id ? <Check size={14} aria-hidden="true"/> : <Copy size={14} aria-hidden="true"/>}{copiedId === job.id ? 'Link copied' : 'Copy application link'}</button>
+                      <button onClick={() => changeHidden(job)}>{hiddenIds.has(job.id) ? <Undo2 size={14} aria-hidden="true"/> : <EyeOff size={14} aria-hidden="true"/>}{hiddenIds.has(job.id) ? 'Restore role' : 'Hide this role'}</button>
+                    </div>
                   </div>
                 </div>}
               </div>)}</div>
