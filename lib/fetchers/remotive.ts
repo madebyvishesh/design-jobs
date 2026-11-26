@@ -36,6 +36,7 @@ export async function fetchRemotiveJobs(): Promise<Job[]> {
       logoUrl: job.company_logo ?? undefined,
       location: job.candidate_required_location ?? 'Remote',
       isRemote: true,
+      workplace: 'remote', employment: job.job_type,
       salary: job.salary?.trim() || undefined,
       url: job.url,
       postedAt: job.publication_date ?? new Date(0).toISOString(),

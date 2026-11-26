@@ -10,6 +10,7 @@ import { expiredListingIds, sixMonthCutoff } from '@/lib/listingAge';
 import { classifyDate } from '@/lib/jobDates';
 import { normalizeListing } from '@/lib/listingText';
 import { isDesignRole } from '@/lib/filterJobs';
+import { arrangements, arrangementOf, employmentOf, employmentTypes } from '@/lib/workFilters';
 import BoardHeader from '@/components/BoardHeader';
 
 export const revalidate = 0;
@@ -61,7 +62,7 @@ const getListings = cache(async () => {
   }
 });
 
-async function JobsContent({ initial }: { initial: BrowseCriteria }) {
+async function JobsContent({ initial, role }: { initial: BrowseCriteria; role:string }) {
   const listings = await getListings();
   if (!listings) return (
     <>
@@ -79,6 +80,20 @@ async function JobsContent({ initial }: { initial: BrowseCriteria }) {
   const jobs = [...listings.aiJobs, ...listings.allJobs].map(normalizeListing)
     .filter(job => isDesignRole(job.title, job.department) && !expired.has(job.id))
     .map(job => ({ ...job, ...classifyDate(job) }));
+  if (role) {
+    const job=jobs.find(j=>j.id===role);
+    return <><BoardHeader/><main id="jobs" className="board-width shared-role">
+      <a href="/">Browse all roles</a>
+      {job ? <article><h2>{job.title}</h2><p>{job.company}</p><dl>
+        {[
+          ['Location',job.location||'Not listed'],['Listed pay',job.salary||'Not listed'],
+          ['Work arrangement',arrangements[arrangementOf(job)]],['Employment type',employmentOf(job).map(t=>employmentTypes[t]).join(' / ')],
+          ['Department',job.department],['Listing date',job.postedAt && ((job.dateKind||'posted')+' '+job.postedAt.slice(0,10))]
+        ].filter(([,value])=>value).map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
+      </dl><a className="primary-action" href={job.url} target="_blank" rel="noopener noreferrer">Apply at {job.company}</a></article>
+      : <article><h2>This role is no longer listed</h2><p>You can still browse current openings.</p></article>}
+    </main></>;
+  }
   const checked = new Intl.DateTimeFormat('en-IN', {
     day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit',
     hour12: true, timeZone: 'Asia/Kolkata',
@@ -100,7 +115,7 @@ export default function Home({ searchParams }: { searchParams: Record<string, st
   return (
     <div className="board-shell">
       <Suspense fallback={<><BoardHeader /><main id="jobs" className="board-width board-loading" role="status">Loading listings…</main></>}>
-        <JobsContent initial={initial} />
+        <JobsContent initial={initial} role={String(searchParams.role || '')} />
       </Suspense>
     </div>
   );

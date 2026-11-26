@@ -5,6 +5,7 @@ import { Bookmark, X } from 'lucide-react';
 import { readBrowseParams, writeBrowseParams, sources, columns, type BrowseCriteria } from '@/lib/browseParams';
 import BoardSelect from './BoardSelect';
 import { countries, levels } from '@/lib/discoveryFilters';
+import { arrangements, employmentTypes } from '@/lib/workFilters';
 import { fields, type DesignField } from '@/lib/jobFields';
 
 const KEY = 'design-jobs:searches';
@@ -14,7 +15,9 @@ function read(): string[] {
 }
 function label(state: BrowseCriteria) {
   return [state.search.trim(), state.field !== 'all' && state.field.split(',').map(f=>fields[f as DesignField]).join(' or '), state.company,
-    state.level !== 'all' && levels[state.level], state.salary && 'Salary listed', countries.find(c=>c.value===state.country)?.label, state.country && state.unspecified && 'Include unspecified regions', state.scope !== 'All roles' && state.scope,
+    state.city, state.arrangement && arrangements[state.arrangement as keyof typeof arrangements], state.employment && employmentTypes[state.employment as keyof typeof employmentTypes],
+    state.target && 'Range reaches '+state.currency+' '+state.target+'/'+state.period, state.hideApplied && 'Hide applied',
+    state.level !== 'all' && state.level.split(',').map(l=>levels[l as keyof typeof levels]).join(' or '), state.salary && 'Salary listed', countries.find(c=>c.value===state.country)?.label, state.country && state.unspecified && 'Include unspecified regions', state.scope !== 'All roles' && state.scope,
     state.remote && 'Remote', state.week && 'Last 7 days', state.newest && 'New since last visit',
     state.source !== 'all' && sources[state.source as keyof typeof sources],
     state.explicitSort && (state.sortKey === 'postedAt' ? state.ascending ? 'Oldest first' : 'Newest first' :

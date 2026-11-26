@@ -138,6 +138,7 @@ export function readPosting(html: string, url: URL, company: WorkdayCompany, now
   return {
     id: 'workday-' + company.tenant + '-' + id, title, company: company.name, companyDomain: company.domain,
     url: url.href, location, isRemote: remote || /\bremote\b/i.test(location),
+    employment: values(posting.employmentType).map(name).filter(Boolean).join(', '),
     postedAt: name(posting.datePosted), dateKind: 'posted', department: '', ats, sources: [ats], isAI: isAIFromCurated(company.name),
     salary: salaryRange(typeof min === 'number' ? min : undefined, typeof max === 'number' ? max : undefined, name(pay.currency), name(range.unitText)),
   };

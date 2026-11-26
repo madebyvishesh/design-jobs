@@ -14,6 +14,8 @@ export type Job = {
   lastVerifiedAt?: number;
   firstSeenAt?: number;
   knownSince?: number;
+  workplace?: string;
+  employment?: string;
   salary?: string;
   dateKind?: 'posted' | 'updated' | 'created' | 'unknown';
   dateSource?: AtsSource;

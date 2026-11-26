@@ -26,6 +26,7 @@ export function mergePostings(raw: Job[]) {
     const direct = old.ats === 'yc' || old.ats === 'remotive' ? job : old;
     const knownSince = Math.min(listingKnownSince(old, Infinity), listingKnownSince(job, Infinity));
     byUrl.set(key, { ...direct, knownSince: Number.isFinite(knownSince) ? knownSince : undefined, sources: Array.from(new Set([...old.sources, ...job.sources])),
+      employment: direct.employment || old.employment || job.employment, workplace: direct.workplace || old.workplace || job.workplace,
       batch: direct.batch || old.batch || job.batch, salary: direct.salary || old.salary || job.salary,
       logoUrl: direct.logoUrl || old.logoUrl || job.logoUrl, ...preferredDate(old, job) });
   }

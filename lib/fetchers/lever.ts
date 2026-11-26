@@ -34,6 +34,7 @@ async function fetchLeverJobs(slug: string, name: string, domain: string, batch?
       companyDomain: domain,
       location: loc,
       isRemote: job.workplaceType && job.workplaceType !== 'unspecified' ? job.workplaceType === 'remote' : /\bremote\b/i.test(loc),
+      workplace: job.workplaceType, employment: job.categories?.commitment,
       salary: salaryRange(job.salaryRange?.min, job.salaryRange?.max, job.salaryRange?.currency, job.salaryRange?.interval),
       url: job.hostedUrl ?? `https://jobs.lever.co/${slug}/${job.id}`,
       postedAt: job.createdAt ? new Date(job.createdAt).toISOString() : new Date(0).toISOString(),

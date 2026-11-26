@@ -9,7 +9,9 @@ import { browsePool, prepareListing, recoveryChoices, selectedHits } from '@/lib
 import { listedPlaces, normalizeListing } from '@/lib/listingText';
 import { countries, levels, remoteBadge } from '@/lib/discoveryFilters';
 import { useHiddenRoles } from './useHiddenRoles';
-import FieldPicker from './FieldPicker';
+import JobFilters from './JobFilters';
+import CompareSaved from './CompareSaved';
+import { arrangements, employmentTypes, arrangementOf, employmentOf } from '@/lib/workFilters';
 import ListingHint from './ListingHint';
 import { fields, type DesignField } from '@/lib/jobFields';
 import { usePreviousVisit, useShortlist } from './useShortlist';
@@ -124,6 +126,11 @@ interface Props {
   initial: BrowseCriteria;
 }
 
+function extraCriteria(c:BrowseCriteria) {
+  const {city,arrangement,employment,target,currency,period,hideApplied}=c;
+  return {city,arrangement,employment,target,currency,period,hideApplied};
+}
+
 export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked, initial }: Props) {
   const [scope, setScope] = useState<Scope>(initial.scope);
   const [search, setSearch] = useState(initial.search);
@@ -138,6 +145,13 @@ export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked,
   const [salary,setSalary] = useState(initial.salary);
   const [country,setCountry] = useState(initial.country);
   const [unspecified,setUnspecified] = useState(initial.unspecified);
+  const [extra,setExtra]=useState(()=>extraCriteria(initial));
+  const [phone,setPhone]=useState(false);
+  useEffect(()=>{
+    const m=window.matchMedia('(max-width:679px)');
+    function resize(){setPhone(m.matches);setFiltersOpen(false);}
+    resize();m.addEventListener('change',resize);return ()=>m.removeEventListener('change',resize);
+  },[]);
   const [showHidden,setShowHidden] = useState(false);
   const { hidden,setRoleHidden } = useHiddenRoles();
   const hiddenIds = useMemo(()=>new Set(hidden),[hidden]);
@@ -146,7 +160,7 @@ export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked,
   const previousBrowse = useRef<{criteria: BrowseCriteria; range:{first:number;last:number}; scroll:number; opened:string; showHidden:boolean} | null>(null);
   const [newest, setNewest] = useState(initial.newest);
   const [explicitSort, setExplicitSort] = useState(initial.explicitSort);
-  const { entries, toggle, markApplied } = useShortlist(jobs);
+  const { entries, toggle, markApplied, saveNote } = useShortlist(jobs);
   const previousVisit = usePreviousVisit(fetchedAt);
   const liveIds = useMemo(() => new Set(jobs.map(job => job.id)), [jobs]);
   const saved = useMemo(() => new Set(Object.keys(entries)), [entries]);
@@ -172,10 +186,11 @@ export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked,
   const results = useRef<HTMLHeadingElement>(null);
   const terms = useMemo(() => searchTerms(search), [search]);
   const indexed = useMemo(() => [...jobs, ...archived].map(prepareListing), [jobs, archived]);
-  const context = useMemo(() => ({liveIds,saved,hiddenIds,showHidden,previousVisit,fetchedAt}),
-    [liveIds,saved,hiddenIds,showHidden,previousVisit,fetchedAt]);
-  const criteria = useMemo(() => ({ search, scope, remote, week, source, sortKey, ascending, field, newest, company, level, salary, country, unspecified, explicitSort }),
-    [search, scope, remote, week, source, sortKey, ascending, field, newest, company, level, salary, country, unspecified, explicitSort]);
+  const applied=useMemo(()=>new Set(Object.keys(entries).filter(id=>entries[id].applied)),[entries]);
+  const context = useMemo(() => ({liveIds,saved,applied,hiddenIds,showHidden,previousVisit,fetchedAt}),
+    [liveIds,saved,applied,hiddenIds,showHidden,previousVisit,fetchedAt]);
+  const criteria = useMemo(() => ({ ...extra, search, scope, remote, week, source, sortKey, ascending, field, newest, company, level, salary, country, unspecified, explicitSort }),
+    [extra, search, scope, remote, week, source, sortKey, ascending, field, newest, company, level, salary, country, unspecified, explicitSort]);
   const countNewMatches = useCallback((state: BrowseCriteria, since: number) => {
     const normal = {...context,showHidden:false};
     return selectedHits(browsePool(indexed,state,normal),state,normal).hits
@@ -183,7 +198,7 @@ export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked,
   },[context,indexed,liveIds]);
 
   const applyCriteria = useCallback((state: BrowseCriteria) => {
-    setSearch(state.search); setScope(state.scope); setRemote(state.remote); setWeek(state.week);
+    setExtra(extraCriteria(state)); setSearch(state.search); setScope(state.scope); setRemote(state.remote); setWeek(state.week);
     setCompany(state.company);setLevel(state.level);setSalary(state.salary);setCountry(state.country);setUnspecified(state.unspecified);
     setOpened('');setShowHidden(false);setField(state.field); setNewest(state.newest); setExplicitSort(state.explicitSort);
     setSource(state.source); setSortKey(state.sortKey); setAscending(state.ascending); setRange({ first: 0, last: 0 });
@@ -213,7 +228,7 @@ export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked,
     let retry: number | undefined;
     function persist() {
       const url = new URL(window.location.href);
-      writeBrowseParams(url.searchParams, { search, scope, remote, week, source, sortKey, ascending, field, newest, company, level, salary, country, unspecified, explicitSort });
+      writeBrowseParams(url.searchParams, criteria);
       if (url.href === window.location.href) return;
       try { window.history.replaceState(null, '', url); }
       catch (error) {
@@ -225,7 +240,7 @@ export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked,
     }
     persist();
     return () => window.clearTimeout(retry);
-  }, [search, scope, remote, week, source, sortKey, ascending, field, newest, company, level, salary, country, unspecified, explicitSort]);
+  }, [criteria]);
 
   useEffect(() => {
     function sync() {
@@ -271,6 +286,7 @@ export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked,
   }
 
   function resetFilters() {
+    setExtra(extraCriteria(readBrowseParams(new URLSearchParams())));
     setShowHidden(false); setOpened(''); setSearch(''); setRemote(false); setWeek(false); setSource('all'); setField('all'); setCompany('');setLevel('all');setSalary(false);setCountry('');setUnspecified(false);setNewest(false); setPage(0);
     input.current?.focus();
   }
@@ -288,13 +304,9 @@ export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked,
     }
     return counts;
   },[jobs, hiddenIds]);
-  const { matches, closeTitles, newCount, fieldCounts, recoveries } = useMemo(() => {
+  const { matches, closeTitles, newCount, recoveries } = useMemo(() => {
     const pool = browsePool(indexed,criteria,context);
     const {hits,close,newCount} = selectedHits(pool,criteria,context);
-    const fieldCounts: Record<string,number> = {};
-    for (const field of ['all',...Object.keys(fields)]) {
-      fieldCounts[field] = selectedHits(pool,{...criteria,field},context).hits.length;
-    }
     const recoveries = hits.length ? [] : recoveryChoices(indexed,criteria,context);
     const ranked = hits.map(({ job, index }) => ({ job, score: terms.length && !explicitSort ? titleRelevance(index, terms, close) : 0 }));
     ranked.sort((left, right) => {
@@ -304,7 +316,7 @@ export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked,
       const order = a[sortKey].toLowerCase().localeCompare(b[sortKey].toLowerCase(), 'en');
       return ascending ? order : -order;
     });
-    return { matches: ranked.map(hit => hit.job), closeTitles: close && hits.length > 0, newCount, fieldCounts, recoveries };
+    return { matches: ranked.map(hit => hit.job), closeTitles: close && hits.length > 0, newCount, recoveries };
   }, [indexed, criteria, context, terms, explicitSort, sortKey, ascending]);
   const overview = useMemo(() => ({
     companies: new Set(matches.map(job => job.company)).size,
@@ -318,7 +330,7 @@ export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked,
   const end = Math.min((current + 1) * PAGE_SIZE, matches.length);
   const visible = matches.slice(start, end);
 
-  const hasFilters = Boolean(company || salary || level!=='all' || country || search || remote || week || source !== 'all' || field !== 'all' || newest);
+  const hasFilters = Boolean(extra.city || extra.arrangement || extra.employment || extra.target || extra.hideApplied || company || salary || level!=='all' || country || search || remote || week || source !== 'all' || field !== 'all' || newest);
   const snapshotYear = new Date(fetchedAt).getUTCFullYear();
   const emptySaved = scope === 'Saved' && savedCount === 0;
 
@@ -421,10 +433,29 @@ export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked,
     }
   }
 
+  const countFor=useCallback((c:BrowseCriteria)=>selectedHits(browsePool(indexed,c,context),c,context).hits.length,[indexed,context]);
+  const places = useMemo(() => {
+    const frequency = new Map<string, number>();
+    for (const row of indexed) {
+      for (const place of row.places) frequency.set(place, (frequency.get(place) || 0) + 1);
+    }
+    return Array.from(frequency.keys()).sort((a,b) => frequency.get(b)! - frequency.get(a)! || a.localeCompare(b));
+  }, [indexed]);
+  const currencies=useMemo(()=>Array.from(new Set(indexed.flatMap(r=>r.bands.map(b=>b.currency)))),[indexed]);
+  const savedJobs=useMemo(()=>indexed.filter(r=>saved.has(r.job.id)).map(r=>r.job),[indexed,saved]);
+  function closeFilters(){setFiltersOpen(false);requestAnimationFrame(()=>filterTrigger.current?.focus());}
+  function changeFilters(next:BrowseCriteria){applyCriteria(next);setShowHidden(showHidden);}
+  function removeExtra(patch:Partial<typeof extra>) {setExtra({...extra,...patch});setPage(0);}
+  async function share(job:Job,trigger:HTMLButtonElement) {
+    const url=new URL('/',window.location.origin);url.searchParams.set('role',job.id);
+    try {await navigator.clipboard.writeText(url.href);setNotice('Share link copied.');}
+    catch {setNotice('Share this role: '+url.href);}
+    noticeTrigger.current=trigger;
+  }
   const checkedTime = <time dateTime={new Date(fetchedAt).toISOString()}>{checked} IST</time>;
   const bestMatch = Boolean(terms.length && !explicitSort);
   const customSort = explicitSort && (terms.length > 0 || sortKey !== 'postedAt' || ascending);
-  const filterCount = Number(week) + Number(source !== 'all') + selectedFields.length + Number(newest) + Number(salary) + Number(level!=='all') + Number(Boolean(country)) + Number(showHidden);
+  const filterCount = Number(week) + Number(source !== 'all') + selectedFields.length + Number(newest) + Number(salary) + Number(level!=='all') + Number(Boolean(country)) + Number(showHidden)+Number(Boolean(extra.city))+Number(Boolean(extra.arrangement))+Number(Boolean(extra.employment))+Number(Boolean(extra.target))+Number(extra.hideApplied);
   return (
     <div className="job-board">
       <BoardHeader>
@@ -445,41 +476,10 @@ export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked,
             </button>
           </div>
         </div>
-        <div id="board-filters" className="board-filters" hidden={!filtersOpen} onKeyDown={event => {
-          if (event.key === 'Tab' && event.shiftKey && event.target instanceof HTMLElement && event.target.id === 'field-filter') {
-            event.preventDefault(); filterTrigger.current?.focus();
-          }
-          if (event.key === 'Escape' && !(event.target instanceof HTMLElement && event.target.closest('[role=listbox]'))) {
-            setFiltersOpen(false);
-            filterTrigger.current?.focus();
-          }
-        }}>
-          <FieldPicker value={field} counts={fieldCounts} onChange={value=>{setField(value);setPage(0);}}/>
-          <BoardSelect id="level-filter" label="Experience level" value={level}
-            options={[{value:'all',label:'All levels'},...Object.entries(levels).map(([value,label])=>({value,label}))]}
-            onChange={value=>{setLevel(value as BrowseCriteria['level']);setPage(0);}}/>
-          <BoardSelect id="portal-filter" label="Job portal" value={source}
-            options={[{ value: 'all', label: 'All portals' }, ...Object.entries(sources).map(([value, label]) => ({ value, label }))]}
-            onChange={value => { setSource(value); setPage(0); }} />
-          <BoardSelect id="sort-order" label="Sort by" value={bestMatch ? 'best' : sortKey + (ascending ? '+' : '-')}
-            options={[...(terms.length ? [{ value: 'best', label: 'Best match' }] : []),
-              ...(Object.keys(columns) as SortKey[]).flatMap(key => (key === 'postedAt' ? ['-', '+'] : ['+', '-']).map(dir =>
-                ({ value: key + dir, label: sortLabel(key, dir === '+') })))]}
-            onChange={value => {
-              if (value === 'best') { setExplicitSort(false); setSortKey('postedAt'); setAscending(false); setPage(0); }
-              else sortBy(value.slice(0, -1) as SortKey, value.endsWith('+'));
-            }} />
-          {(remote || country) && <BoardSelect id="country-filter" label="Remote from" value={country || 'all'} options={[{value:'all',label:'Any country'},...countries]}
-            onChange={value=>{setCountry(value==='all'?'':value);setUnspecified(false);setPage(0);}}/>}
-          <div className="filter-toggles">
-          <label className="board-control"><input type="checkbox" checked={salary} onChange={e=>{setSalary(e.target.checked);setPage(0);}}/>Salary listed</label>
-          {country && <label className="board-control"><input type="checkbox" checked={unspecified} onChange={e=>{setUnspecified(e.target.checked);setPage(0);}}/>Include unspecified countries</label>}
-          {hidden.length>0 && <label className="board-control"><input type="checkbox" checked={showHidden} onChange={e=>{setShowHidden(e.target.checked);setScope('All roles');setPage(0);}}/>View hidden roles ({hidden.length})</label>}
-          <label className="board-control"><input type="checkbox" checked={week} onChange={e => { setWeek(e.target.checked); setPage(0); }} />Posted in the last 7 days</label>
-          <label className="board-control"><input type="checkbox" checked={detail} onChange={toggleDetail} />Show job details</label>
-          </div>
-          <SavedSearches criteria={criteria} apply={applyCriteria} fetchedAt={fetchedAt} countNew={countNewMatches} />
-        </div>
+        {filtersOpen && <JobFilters criteria={criteria} count={countFor} places={places} currencies={currencies} hasApplied={applied.size>0}
+          phone={phone} apply={changeFilters} close={closeFilters}>
+          {active=><SavedSearches criteria={active} apply={c=>{applyCriteria(c);if(phone)closeFilters();}} fetchedAt={fetchedAt} countNew={countNewMatches}/>}
+        </JobFilters>}
       </BoardHeader>
       <main id="jobs" className="board-main">
         <div className="directory-results">
@@ -492,8 +492,20 @@ export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked,
                     {item}{item === 'Saved' && savedCount > 0 && <span> ({savedCount})</span>}
                   </button>)}
                 </div>
-                <label className="board-control remote-control"><input type="checkbox" checked={remote} onChange={e => { setRemote(e.target.checked); if (!e.target.checked) {setCountry('');setUnspecified(false);} setPage(0); }} aria-label="Remote only" />Remote</label>
+                <label className="board-control remote-control"><input type="checkbox" checked={remote} onChange={e => { setRemote(e.target.checked); if(e.target.checked) setExtra({...extra,arrangement:''}); if (!e.target.checked) {setCountry('');setUnspecified(false);} setPage(0); }} aria-label="Remote only" />Remote</label>
               </div>
+              <details className="view-options"><summary>View<ChevronDown size={14} aria-hidden="true" /></summary><div>
+          <BoardSelect id="sort-order" label="Sort by" value={bestMatch ? 'best' : sortKey + (ascending ? '+' : '-')}
+            options={[...(terms.length ? [{ value: 'best', label: 'Best match' }] : []),
+              ...(Object.keys(columns) as SortKey[]).flatMap(key => (key === 'postedAt' ? ['-', '+'] : ['+', '-']).map(dir =>
+                ({ value: key + dir, label: sortLabel(key, dir === '+') })))]}
+            onChange={value => {
+              if (value === 'best') { setExplicitSort(false); setSortKey('postedAt'); setAscending(false); setPage(0); }
+              else sortBy(value.slice(0, -1) as SortKey, value.endsWith('+'));
+            }} />
+                <label><input type="checkbox" checked={detail} onChange={toggleDetail}/>Show job details</label>
+                {hidden.length>0 && <label><input type="checkbox" checked={showHidden} onChange={e=>{setShowHidden(e.target.checked);setScope('All roles');setPage(0);}}/>View hidden roles ({hidden.length})</label>}
+              </div></details>
               <div className="results-summary">
                 <h2 tabIndex={-1} ref={results} aria-live="polite" aria-atomic="true">
                   <span>{matches.length ? (start + 1) + '–' + end + ' of ' + matches.length + (matches.length === 1 ? ' role' : ' roles') : '0 matching roles'}</span>
@@ -507,8 +519,14 @@ export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked,
                   {newCount} new since last visit {newest && <X size={12} />}</button>}
                 {selectedFields.map(f=><button type="button" key={f} className="filter-chip" aria-label={'Remove '+fields[f]+' filter'} onClick={()=>{setField(selectedFields.filter(v=>v!==f).join(',')||'all');setPage(0);}}>{fields[f]} <X size={12}/></button>)}
                 {company && <button className="filter-chip" onClick={leaveCompany}>{company} · Back to results <X size={12}/></button>}
-                {level!=='all' && <button className="filter-chip" onClick={()=>{setLevel('all');setPage(0);}}>{levels[level]} <X size={12}/></button>}
+                {level!=='all' && <button className="filter-chip" onClick={()=>{setLevel('all');setPage(0);}}>{level.split(',').map(l=>levels[l as keyof typeof levels]).join(' or ')} <X size={12}/></button>}
                 {salary && <button className="filter-chip" onClick={()=>{setSalary(false);setPage(0);}}>Salary listed <X size={12}/></button>}
+                {([
+                  [extra.city,{city:''}], [arrangements[extra.arrangement as keyof typeof arrangements],{arrangement:''}],
+                  [employmentTypes[extra.employment as keyof typeof employmentTypes],{employment:''}],
+                  [extra.target && 'Range reaches '+extra.currency+' '+Number(extra.target).toLocaleString('en-US')+'/'+extra.period,{target:''}],
+                  [extra.hideApplied && 'Hide applied',{hideApplied:false}]
+                ] as const).map(([label,patch])=>label && <button key={label} className="filter-chip" onClick={()=>removeExtra(patch)}>{label} <X size={12}/></button>)}
                 {country && <button className="filter-chip" onClick={()=>{setCountry('');setUnspecified(false);setPage(0);}}>{countries.find(c=>c.value===country)?.label} <X size={12}/></button>}
                 {showHidden && <button className="filter-chip" onClick={()=>{setShowHidden(false);setPage(0);}}>Hidden roles <X size={12}/></button>}
                 {customSort && <span className="sort-summary">{sortLabel(sortKey, ascending)}</span>}
@@ -518,6 +536,7 @@ export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked,
                   onClick={() => { setWeek(false); setPage(0); filterTrigger.current?.focus(); }}>Last 7 days <X size={12} /></button>}
               </div>
             </div>
+            {scope==='Saved' && savedJobs.length>=2 && <div className="compare-toolbar"><CompareSaved jobs={savedJobs}/></div>}
             {visible.length ? <div className="listings-table" data-details={detail} role="table" aria-label="Design job listings">
               <div className="listing-head" role="row">
                 {(Object.keys(columns) as SortKey[]).map(key => <div key={key} role="columnheader" aria-sort={!bestMatch && key === sortKey ? (ascending ? 'ascending' : 'descending') : undefined}>
@@ -539,6 +558,7 @@ export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked,
                     {!liveIds.has(job.id) && <span>No longer listed</span>}
                     <button type="button" aria-pressed={Boolean(entries[job.id]?.applied)} aria-label={'Mark as applied: ' + job.title} onClick={() => {
                       if (!markApplied(job)) { setNotice('Application status will last for this visit.'); }
+                      if (extra.hideApplied) requestAnimationFrame(() => results.current?.focus());
                     }}>{entries[job.id]?.applied ? <><Check size={13} />Applied</> : 'Mark as applied'}</button>
                   </div>}
                 </div>
@@ -572,12 +592,18 @@ export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked,
                 {opened === job.id && <div role="cell" id={'detail-' + job.id} className="job-detail-panel">
                   <h3>{job.title}</h3>
                   <p>{job.location || 'Location unavailable'}</p>
+                  <p>{[arrangements[arrangementOf(job)],...employmentOf(job).map(t=>employmentTypes[t])].filter(v=>v!=='Unspecified').join(' · ')}</p>
+                  {scope==='Saved' && saved.has(job.id) && <label className="private-note">Private note <small>On this device</small>
+                    <textarea rows={2} value={entries[job.id]?.note||''} placeholder="Add a note" onChange={e=>{
+                      if(!saveNote(job.id,e.target.value))setNotice('Note kept for this visit. Device storage is unavailable.');
+                    }}/></label>}
                   {(job.department || job.salary) && <p>{[job.department, job.salary].filter(Boolean).join(' · ')}</p>}
                   <p><ListingDate job={job} currentYear={snapshotYear} /> · {listingSources(job).map(id => sources[id]).join(', ')}</p>
                   {job.lastVerifiedAt && <p>Last verified {new Date(job.lastVerifiedAt).toISOString().slice(0, 10)}</p>}
                   <div className="detail-actions">
                     {liveIds.has(job.id) && <a href={job.url} target="_blank" rel="noopener noreferrer">Apply <ArrowUpRight size={14} /></a>}
-                    <button onClick={event => copy(job, event.currentTarget)}>{copiedId === job.id ? 'Link copied' : 'Copy link'}</button>
+                    <button onClick={event => copy(job, event.currentTarget)}>{copiedId === job.id ? 'Link copied' : 'Copy application link'}</button>
+                    {liveIds.has(job.id) && <button onClick={e=>share(job,e.currentTarget)}>Share role</button>}
                     {company !== job.company && (companyCounts.get(job.company) ?? 0) > 1 &&
                       <button onClick={() => browseCompany(job.company)}>See all {companyCounts.get(job.company)} roles at {job.company}</button>}
                     <button onClick={() => changeHidden(job)}>{hiddenIds.has(job.id) ? 'Restore role' : 'Hide this role'}</button>

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Job } from '@/types/job';
 
-type Entry = { job?: Job; applied: boolean };
+type Entry = { note?: string; job?: Job; applied: boolean };
 type Shortlist = Record<string, Entry>;
 const KEY = 'design-jobs:shortlist:v1';
 
@@ -17,7 +17,7 @@ function readShortlist(): Shortlist {
         if (!item || typeof item !== 'object' || !('applied' in item) || typeof item.applied !== 'boolean') continue;
         const job = 'job' in item ? item.job as Job | undefined : undefined;
         const valid = job && job.id === id && [job.title, job.company, job.location, job.postedAt, job.url].every(v => typeof v === 'string') && /^https?:\/\//i.test(job.url);
-        entries[id] = { applied: item.applied, job: valid ? job : undefined };
+        entries[id] = { note: 'note' in item && typeof item.note==='string' ? item.note : undefined, applied: item.applied, job: valid ? job : undefined };
       }
       return entries;
     }
@@ -69,9 +69,14 @@ export function useShortlist(jobs: Job[]) {
   function markApplied(job: Job) {
     const next = current();
     if (!Object.hasOwn(next, job.id)) return true;
-    return store({ ...next, [job.id]: { job, applied: !next[job.id].applied } });
+    return store({ ...next, [job.id]: { ...next[job.id], job, applied: !next[job.id].applied } });
   }
-  return { entries, toggle, markApplied };
+  function saveNote(id:string,note:string) {
+    const next = current();
+    if (!Object.hasOwn(next,id)) return false;
+    return store({...next,[id]:{...next[id],note}});
+  }
+  return { entries, toggle, markApplied, saveNote };
 }
 
 export function usePreviousVisit(fetchedAt: number) {

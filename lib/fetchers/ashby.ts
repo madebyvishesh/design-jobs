@@ -37,6 +37,7 @@ async function fetchAshbyJobs(slug: string, name: string, domain: string, batch?
       company: name,
       companyDomain: domain,
       location: Array.from(new Set([job.location, ...(job.secondaryLocations ?? []).map(place => place.location)].filter(Boolean))).join(' · '),
+      workplace: job.workplaceType, employment: job.employmentType,
       salary: job.compensation?.summaryComponents?.filter(part => part.compensationType === 'Salary')
         .map(part => salaryRange(part.minValue, part.maxValue, part.currencyCode, part.interval)).filter(Boolean).join(' / ') || undefined,
       isRemote: job.workplaceType ? job.workplaceType === 'Remote' : job.isRemote ?? false,

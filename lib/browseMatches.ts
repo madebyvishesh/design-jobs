@@ -1,3 +1,4 @@
+import { arrangementOf, employmentOf, locationNames, payBands } from './workFilters';
 import type { Job } from '../types/job';
 import type { BrowseCriteria } from './browseParams';
 import { experienceLevel, remoteEligibility } from './discoveryFilters';
@@ -5,21 +6,25 @@ import { jobFields } from './jobFields';
 import { indexJob, jobMatches, searchTerms } from './jobSearch';
 
 export function prepareListing(job: Job) {
-  return { job, index: indexJob(job), fields: jobFields(job.title,job.department), level: experienceLevel(job.title),
+  return { job, arrangement:arrangementOf(job), employment:employmentOf(job), places:locationNames(job), bands:payBands(job.salary), index: indexJob(job), fields: jobFields(job.title,job.department), level: experienceLevel(job.title),
     region: job.isRemote ? remoteEligibility(job.location) : null };
 }
 
 type Listing = ReturnType<typeof prepareListing>;
-export type BrowseContext = { liveIds: Set<string>; saved: Set<string>; hiddenIds: Set<string>;
+export type BrowseContext = { applied?: Set<string>; liveIds: Set<string>; saved: Set<string>; hiddenIds: Set<string>;
   showHidden: boolean; previousVisit: number | null; fetchedAt: number };
 
 export function browsePool(rows: Listing[], c: BrowseCriteria, ctx: BrowseContext) {
-  return rows.filter(({job,level,region}) => {
+  return rows.filter(({job,level,region,arrangement,employment,places,bands}) => {
     if (c.scope === 'Saved' ? !ctx.saved.has(job.id) : !ctx.liveIds.has(job.id)) return false;
     if (ctx.showHidden ? !ctx.hiddenIds.has(job.id) : ctx.hiddenIds.has(job.id) && c.scope !== 'Saved') return false;
     if (c.scope === 'AI companies' && !job.isAI) return false;
+    if (c.hideApplied && ctx.applied?.has(job.id)) return false;
+    if (c.arrangement && arrangement!==c.arrangement || c.employment && !employment.some(t=>t===c.employment)) return false;
+    if (c.city && !places.includes(c.city)) return false;
+    if (c.target && !bands.some(b=>b.currency===c.currency && b.period===c.period && b.max>=Number(c.target))) return false;
     if ((c.remote || c.country) && !job.isRemote) return false;
-    if (c.company && c.company !== job.company || c.salary && !job.salary || c.level !== 'all' && level !== c.level) return false;
+    if (c.company && c.company !== job.company || c.salary && !job.salary || c.level !== 'all' && !c.level.split(',').includes(level)) return false;
     if (c.source !== 'all' && !(job.sources?.length ? job.sources : [job.ats]).some(source=>source===c.source)) return false;
     if (c.country && !(region?.worldwide || region?.countries.has(c.country) || c.unspecified && region?.unspecified)) return false;
     const age = ctx.fetchedAt - Date.parse(job.postedAt);
@@ -49,6 +54,11 @@ export function selectedHits(pool: Listing[], c: BrowseCriteria, ctx: BrowseCont
 
 export function recoveryChoices(rows: Listing[], criteria: BrowseCriteria, ctx: BrowseContext) {
   const changes: [Partial<BrowseCriteria>,string][] = [];
+  if (criteria.target) changes.push([{target:''},'without the pay target']);
+  if (criteria.arrangement) changes.push([{arrangement:''},'with other work arrangements']);
+  if (criteria.employment) changes.push([{employment:''},'across employment types']);
+  if (criteria.city) changes.push([{city:''},'in other locations']);
+  if (criteria.hideApplied) changes.push([{hideApplied:false},'including applied roles']);
   if (criteria.week) changes.push([{week:false},'older matches']);
   if (criteria.salary) changes.push([{salary:false},'without listed pay']);
   if (criteria.newest) changes.push([{newest:false},'from earlier visits']);
