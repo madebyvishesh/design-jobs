@@ -1,4 +1,5 @@
 import { Suspense, cache } from 'react';
+import { waitUntil } from '@vercel/functions';
 import { unstable_cache } from 'next/cache';
 import { fetchAllDesignJobs } from '@/lib/fetchAllJobs';
 import { getCachedJobs } from '@/lib/jobsCache';
@@ -22,22 +23,30 @@ async function fetchSnapshot() {
   return { ...jobs, fetchedAt: Date.now() };
 }
 
+const getFallback = unstable_cache(fetchSnapshot, ['listings-fallback-v2'], { revalidate: 1800 });
 let pendingFetch: ReturnType<typeof fetchSnapshot> | undefined;
 
 const getListings = cache(async () => {
   const published = await getCachedJobs();
-  const now = Date.now();
-  if (published && now - published.fetchedAt < refreshInterval) return published;
+  if (published && Date.now() - published.fetchedAt < refreshInterval) return published;
 
-  // Share the fallback across visits without overwriting the scheduled publication.
-  const window = String(Math.floor(now / refreshInterval));
-  const getFallback = unstable_cache(fetchSnapshot, ['listings-fallback', window], { revalidate: 1800 });
-  try {
-    pendingFetch ??= getFallback().finally(() => { pendingFetch = undefined; });
-    return await pendingFetch;
-  } catch (error) {
+  pendingFetch ??= getFallback().finally(() => { pendingFetch = undefined; });
+  const refresh = pendingFetch.catch(error => {
     console.error('Listings refresh failed', error);
-    return published;
+    return null;
+  });
+  waitUntil(refresh);
+  // A warm fallback is often newer than the publication. Never hold available jobs for a full scrape.
+  let deadline: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const fallback = await Promise.race([
+      refresh,
+      new Promise<null>(resolve => { deadline = setTimeout(() => resolve(null), published ? 150 : 12000); }),
+    ]);
+    if (published && (!fallback || published.fetchedAt >= fallback.fetchedAt)) return published;
+    return fallback;
+  } finally {
+    clearTimeout(deadline);
   }
 });
 

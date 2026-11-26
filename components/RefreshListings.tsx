@@ -7,8 +7,7 @@ export default function RefreshListings({ fetchedAt, interval }: { fetchedAt: nu
   const router = useRouter();
 
   useEffect(() => {
-    // If a fetch failed and the page kept its previous listings, retry in five minutes.
-    const retryDelay = 5 * 60 * 1000;
+    const retryDelay = fetchedAt ? 60000 : 30000;
     let nextCheck = fetchedAt + interval;
     if (nextCheck <= Date.now()) nextCheck = Date.now() + retryDelay;
     let timer: ReturnType<typeof setTimeout>;

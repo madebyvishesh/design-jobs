@@ -13,15 +13,26 @@ function isBlobConfigured(): boolean {
 }
 
 export async function getCachedJobs(): Promise<JobsPayload | null> {
-  if (!isBlobConfigured()) return null;
+  // The scheduled publisher writes a public snapshot. Reading it needs no write token.
+  const publicUrl = process.env.JOBS_SNAPSHOT_URL || (!isBlobConfigured()
+    ? 'https://cwclyptedz0xvtaf.public.blob.vercel-storage.com/design-jobs-cache.json'
+    : undefined);
+  const signal = AbortSignal.timeout(4000);
   try {
-    const { list } = await import('@vercel/blob');
-    const { blobs } = await list({ prefix: 'design-jobs-cache', limit: 1 });
-    if (!blobs[0]) return null;
-    // Fetch from Vercel's public CDN (fast, globally cached)
-    const res = await fetch(blobs[0].url, { cache: 'no-store' });
-    if (!res.ok) return null;
-    return await res.json() as JobsPayload;
+    let response: Response;
+    if (publicUrl) {
+      response = await fetch(publicUrl, { cache: 'no-store', signal });
+      if (!response.ok) return null;
+    } else {
+      const { get } = await import('@vercel/blob');
+      const blob = await get(BLOB_FILENAME, { access: 'public', abortSignal: signal });
+      if (!blob?.stream) return null;
+      response = new Response(blob.stream);
+    }
+    const snapshot: JobsPayload = await response.json();
+    return Array.isArray(snapshot?.aiJobs) && Array.isArray(snapshot.allJobs) &&
+      snapshot.aiJobs.length + snapshot.allJobs.length > 0 && Number.isFinite(snapshot.fetchedAt)
+      ? snapshot : null;
   } catch {
     return null;
   }
@@ -35,6 +46,7 @@ export async function setCachedJobs(payload: JobsPayload): Promise<void> {
       access: 'public',
       addRandomSuffix: false,
       allowOverwrite: true,
+      cacheControlMaxAge: 60,
       contentType: 'application/json',
     });
   } catch {

@@ -1,6 +1,6 @@
 /**
  * Fetches all design jobs from all sources and writes them to Vercel Blob.
- * Run via GitHub Actions every hour — no Vercel serverless limits apply.
+ * Run via GitHub Actions twice an hour — no Vercel serverless limits apply.
  *
  * Usage: npx tsx scripts/fetch-and-cache.ts
  * Required env: BLOB_READ_WRITE_TOKEN
@@ -35,6 +35,7 @@ async function main() {
     access: 'public',
     addRandomSuffix: false,
     allowOverwrite: true,
+    cacheControlMaxAge: 60,
     contentType: 'application/json',
     token,
   });

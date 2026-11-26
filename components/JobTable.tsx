@@ -107,6 +107,9 @@ export default function JobTable({ jobs, fetchedAt, checked, initial }: Props) {
   const noticeTrigger = useRef<HTMLElement | null>(null);
   const filterTrigger = useRef<HTMLButtonElement>(null);
   const emptyAction = useRef<HTMLButtonElement>(null);
+  const mobilePager = useRef<HTMLDivElement>(null);
+  const rowGroup = useRef<HTMLDivElement>(null);
+  const restoreRow = useRef<{ id: string; top: number } | null>(null);
   const firstNewRow = useRef<string | null>(null);
   const results = useRef<HTMLHeadingElement>(null);
   const terms = useMemo(() => searchTerms(search), [search]);
@@ -263,6 +266,55 @@ export default function JobTable({ jobs, fetchedAt, checked, initial }: Props) {
     firstNewRow.current = null;
   }, [range]);
 
+  useEffect(() => {
+    const anchor = restoreRow.current;
+    if (anchor) {
+      restoreRow.current = null;
+      const row = document.getElementById(anchor.id)?.closest('.listing-row');
+      if (row) window.scrollBy(0, row.getBoundingClientRect().top - anchor.top);
+    }
+    if (firstPage === current) return;
+    const mobile = window.matchMedia('(max-width: 679px)');
+    let page = current;
+    let position: { id: string; top: number } | null = null;
+    function rememberPosition() {
+      // WebKit can dispatch a resize-induced scroll before the media query change event.
+      if (!mobilePager.current?.getClientRects().length || !rowGroup.current) return;
+      const rows = rowGroup.current.children;
+      const focused = document.activeElement?.closest('.listing-row');
+      const bounds = focused?.getBoundingClientRect();
+      let index = bounds && bounds.top >= 0 && bounds.top < innerHeight
+        ? Array.prototype.indexOf.call(rows, focused) : -1;
+      if (index < 0) {
+        let low = 0, high = rows.length;
+        while (low < high) {
+          const mid = Math.floor((low + high) / 2);
+          if (rows[mid].getBoundingClientRect().bottom <= 0) low = mid + 1;
+          else high = mid;
+        }
+        index = low;
+      }
+      const row = rows[index];
+      const top = row?.getBoundingClientRect().top;
+      const title = row?.querySelector('.role-title');
+      position = title && top !== undefined && top < innerHeight ? { id: title.id, top } : null;
+      page = Math.min(current, firstPage + Math.floor(index / PAGE_SIZE));
+    }
+    function changeLayout() {
+      if (mobile.matches) return;
+      restoreRow.current = position;
+      setPage(page);
+    }
+    rememberPosition();
+    if (!mobile.matches) changeLayout();
+    mobile.addEventListener('change', changeLayout);
+    window.addEventListener('scroll', rememberPosition, { passive: true });
+    return () => {
+      mobile.removeEventListener('change', changeLayout);
+      window.removeEventListener('scroll', rememberPosition);
+    };
+  }, [firstPage, current]);
+
   async function copy(job: Job, trigger: HTMLButtonElement) {
     try {
       await navigator.clipboard.writeText(job.url);
@@ -292,39 +344,42 @@ export default function JobTable({ jobs, fetchedAt, checked, initial }: Props) {
             </button>
           </div>
         </div>
+        <div id="board-filters" className="board-filters" hidden={!filtersOpen} onKeyDown={event => {
+          if (event.key === 'Escape') {
+            setFiltersOpen(false);
+            filterTrigger.current?.focus();
+          }
+        }}>
+          <div className="filter-field">
+            <label htmlFor="portal-filter">Job portal</label>
+            <div className="filter-select">
+              <select id="portal-filter" onKeyDown={event => {
+                if (event.key === 'Tab' && event.shiftKey) {
+                  event.preventDefault();
+                  filterTrigger.current?.focus();
+                }
+              }} value={source} onChange={e => { setSource(e.target.value); setPage(0); }}>
+                <option value="all">All portals</option>
+                {Object.entries(sources).map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+              </select>
+              <ChevronDown size={14} aria-hidden="true" />
+            </div>
+          </div>
+          <div className="filter-field">
+            <label htmlFor="sort-order">Sort by</label>
+            <div className="filter-select">
+              <select id="sort-order" value={sortKey + (ascending ? '+' : '-')} onChange={e => sortBy(e.target.value.slice(0, -1) as SortKey, e.target.value.endsWith('+'))}>
+                {Object.keys(columns).flatMap(id => ['+', '-'].map(dir =>
+                  <option key={id + dir} value={id + dir}>{sortLabel(id as SortKey, dir === '+')}</option>))}
+              </select>
+              <ChevronDown size={14} aria-hidden="true" />
+            </div>
+          </div>
+          <label className="board-control"><input type="checkbox" checked={week} onChange={e => { setWeek(e.target.checked); setPage(0); }} />Posted in the last 7 days</label>
+          <label className="board-control"><input type="checkbox" checked={detail} onChange={toggleDetail} />Show job details</label>
+        </div>
       </BoardHeader>
       <main id="jobs" className="board-main">
-        <div className="board-width">
-          <div id="board-filters" className="board-filters" hidden={!filtersOpen} onKeyDown={event => {
-            if (event.key === 'Escape') {
-              setFiltersOpen(false);
-              filterTrigger.current?.focus();
-            }
-          }}>
-            <div className="filter-field">
-              <label htmlFor="portal-filter">Job portal</label>
-              <div className="filter-select">
-                <select id="portal-filter" value={source} onChange={e => { setSource(e.target.value); setPage(0); }}>
-                  <option value="all">All portals</option>
-                  {Object.entries(sources).map(([id, name]) => <option key={id} value={id}>{name}</option>)}
-                </select>
-                <ChevronDown size={14} aria-hidden="true" />
-              </div>
-            </div>
-            <div className="filter-field">
-              <label htmlFor="sort-order">Sort by</label>
-              <div className="filter-select">
-                <select id="sort-order" value={sortKey + (ascending ? '+' : '-')} onChange={e => sortBy(e.target.value.slice(0, -1) as SortKey, e.target.value.endsWith('+'))}>
-                  {Object.keys(columns).flatMap(id => ['+', '-'].map(dir =>
-                    <option key={id + dir} value={id + dir}>{sortLabel(id as SortKey, dir === '+')}</option>))}
-                </select>
-                <ChevronDown size={14} aria-hidden="true" />
-              </div>
-            </div>
-            <label className="board-control"><input type="checkbox" checked={week} onChange={e => { setWeek(e.target.checked); setPage(0); }} />Posted in the last 7 days</label>
-            <label className="board-control"><input type="checkbox" checked={detail} onChange={toggleDetail} />Show job details</label>
-          </div>
-        </div>
         <div className="directory-results">
           <div className="board-width">
             <div className="results-nav">
@@ -365,18 +420,16 @@ export default function JobTable({ jobs, fetchedAt, checked, initial }: Props) {
               <div className="tablet-guide" aria-hidden="true">
                 <span>Role and company</span><span>Location and date</span>
               </div>
-              <div role="rowgroup">{visible.map(job => <div className="listing-row" role="row" key={job.id}>
+              <div role="rowgroup" ref={rowGroup}>{visible.map(job => <div className="listing-row" role="row" key={job.id}>
                 <div role="cell" className="role-cell">
                   <a id={'listing-' + job.id} href={job.url} target="_blank" rel="noopener noreferrer" className="role-title"><span><HighlightText text={job.title} terms={terms} /><span className="title-arrow" aria-hidden="true">{'\u2060'}<ArrowUpRight size={13} /></span></span></a>
                   {detail && job.department && <div className="role-detail">{job.department}</div>}
                 </div>
-                <div className="listing-meta" role="presentation">
-                  <div role="cell" className="company-cell"><a href={job.companyDomain ? 'https://' + job.companyDomain : job.url} target="_blank" rel="noopener noreferrer">
-                    <CompanyAvatar key={job.logoUrl || job.companyDomain} job={job} /><span><HighlightText text={job.company} terms={terms} />{detail && job.batch && <small>{job.batch}</small>}</span>
-                  </a>{detail && job.department && <span className="compact-department">{job.department}</span>}</div>
+                <div role="cell" className="company-cell"><a href={job.companyDomain ? 'https://' + job.companyDomain : job.url} target="_blank" rel="noopener noreferrer">
+                  <CompanyAvatar key={job.logoUrl || job.companyDomain} job={job} /><span><HighlightText text={job.company} terms={terms} />{detail && job.batch && <small>{job.batch}</small>}</span>
+                </a>{detail && job.department && <span className="compact-department">{job.department}</span>}</div>
+                <div className="listing-place" role="presentation">
                   <div role="cell" className="location-cell"><JobLocation job={job} terms={terms} /></div>
-                </div>
-                <div className="listing-foot" role="presentation">
                   <div className="listing-attribution" role="presentation">
                     <div role="cell" className="date-cell"><ListingDate job={job} currentYear={snapshotYear} /></div>
                     {detail && <div role="cell" className="portal-cell">
@@ -388,14 +441,14 @@ export default function JobTable({ jobs, fetchedAt, checked, initial }: Props) {
                       </div>
                     </div>}
                   </div>
-                  <div role="cell" className="action-cell"><div>
-                    <button type="button" className="save-job" title={saved.has(job.id) ? 'Remove from saved roles' : 'Save role'} aria-label={'Save ' + job.title + ' at ' + job.company} aria-pressed={saved.has(job.id)} onClick={event => toggleSaved(job, event.currentTarget)}>
-                      {saved.has(job.id) ? <BookmarkCheck size={17} /> : <Bookmark size={17} />}
-                    </button>
-                    {detail && <button type="button" className="copy-job" title={copiedId === job.id ? 'Link copied' : 'Copy job link'} aria-label={'Copy link to ' + job.title} onClick={event => copy(job, event.currentTarget)}>{copiedId === job.id ? <Check size={15} /> : <Copy size={15} />}</button>}
-                    <a href={job.url} target="_blank" rel="noopener noreferrer" aria-label={'Apply for ' + job.title + ' at ' + job.company}><span className="apply-label">Apply <ArrowUpRight size={14} aria-hidden="true" /></span></a>
-                  </div></div>
                 </div>
+                <div role="cell" className="action-cell"><div>
+                  <button type="button" className="save-job" title={saved.has(job.id) ? 'Remove from saved roles' : 'Save role'} aria-label={'Save ' + job.title + ' at ' + job.company} aria-pressed={saved.has(job.id)} onClick={event => toggleSaved(job, event.currentTarget)}>
+                    {saved.has(job.id) ? <BookmarkCheck size={17} /> : <Bookmark size={17} />}
+                  </button>
+                  {detail && <button type="button" className="copy-job" title={copiedId === job.id ? 'Link copied' : 'Copy job link'} aria-label={'Copy link to ' + job.title} onClick={event => copy(job, event.currentTarget)}>{copiedId === job.id ? <Check size={15} /> : <Copy size={15} />}</button>}
+                  <a href={job.url} target="_blank" rel="noopener noreferrer" aria-label={'Apply for ' + job.title + ' at ' + job.company}><span className="apply-label">Apply <ArrowUpRight size={14} aria-hidden="true" /></span></a>
+                </div></div>
               </div>)}</div>
             </div> : <div className="board-empty">
               <span className="empty-icon" aria-hidden="true">{emptySaved ? <Bookmark size={22} /> : <Search size={22} />}</span>
@@ -404,7 +457,7 @@ export default function JobTable({ jobs, fetchedAt, checked, initial }: Props) {
               <button ref={emptyAction} className="board-control" onClick={() => { resetFilters(); if (emptySaved || !hasFilters) setScope('All roles'); }}>{emptySaved || !hasFilters ? 'Browse all roles' : 'Clear filters'}</button>
             </div>}
             {pages > 1 && <nav className="board-pages" aria-label="Results pages">
-              <div className="pages-mobile">
+              <div className="pages-mobile" ref={mobilePager}>
                 {firstPage > 0 && <button onClick={() => goToPage(firstPage - 1)}>Previous</button>}
                 {current < pages - 1 && <button onClick={() => {
                   firstNewRow.current = 'listing-' + matches[end].id;
