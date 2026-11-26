@@ -453,23 +453,21 @@ export default function JobTable({ jobs, fetchedAt, checked, initial }: Props) {
                     }}>{entries[job.id]?.applied ? <><Check size={13} />Applied</> : 'Mark as applied'}</button>
                   </div>}
                 </div>
-                <div className="listing-context" role="presentation">
-                  <div role="cell" className="company-cell"><a href={job.companyDomain ? 'https://' + job.companyDomain : job.url} target="_blank" rel="noopener noreferrer">
-                    <CompanyAvatar key={job.logoUrl || job.companyDomain} job={job} /><span><HighlightText text={job.company} terms={terms} />{detail && job.batch && <small>{job.batch}</small>}</span>
-                  </a>{detail && job.department && <span className="compact-department">{job.department}</span>}</div>
-                  <div className="listing-place" role="presentation">
-                    <div role="cell" className="location-cell"><JobLocation job={job} terms={terms} /></div>
-                    <div className="listing-attribution" role="presentation">
-                      <div role="cell" className="date-cell"><ListingDate job={job} currentYear={snapshotYear} /></div>
-                      {detail && <div role="cell" className="portal-cell">
-                        <div className="listing-portals" role="group" aria-label="Job portals">
-                          <span className="portal-caption">Via</span>
-                          {listingSources(job).map(id => (
-                            <span key={id} data-portal={id} className="portal-badge">{sources[id]}</span>
-                          ))}
-                        </div>
-                      </div>}
-                    </div>
+                <div role="cell" className="company-cell"><a href={job.companyDomain ? 'https://' + job.companyDomain : job.url} target="_blank" rel="noopener noreferrer">
+                  <CompanyAvatar key={job.logoUrl || job.companyDomain} job={job} /><span><HighlightText text={job.company} terms={terms} />{detail && job.batch && <small>{job.batch}</small>}</span>
+                </a>{detail && job.department && <span className="compact-department">{job.department}</span>}</div>
+                <div className="listing-place" role="presentation">
+                  <div role="cell" className="location-cell"><JobLocation job={job} terms={terms} /></div>
+                  <div className="listing-attribution" role="presentation">
+                    <div role="cell" className="date-cell"><ListingDate job={job} currentYear={snapshotYear} /></div>
+                    {detail && <div role="cell" className="portal-cell">
+                      <div className="listing-portals" role="group" aria-label="Job portals">
+                        <span className="portal-caption">Via</span>
+                        {listingSources(job).map(id => (
+                          <span key={id} data-portal={id} className="portal-badge">{sources[id]}</span>
+                        ))}
+                      </div>
+                    </div>}
                   </div>
                 </div>
                 <div role="cell" className="action-cell"><div>
