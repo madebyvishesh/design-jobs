@@ -4,6 +4,7 @@ import { fetchAllDesignJobs } from '@/lib/fetchAllJobs';
 import { getCachedJobs } from '@/lib/jobsCache';
 import RefreshListings from '@/components/RefreshListings';
 import JobTable from '@/components/JobTable';
+import { readBrowseParams, type BrowseCriteria } from '@/lib/browseParams';
 import { classifyDate } from '@/lib/jobDates';
 import { isDesignRole } from '@/lib/filterJobs';
 import BoardHeader from '@/components/BoardHeader';
@@ -40,7 +41,7 @@ const getListings = cache(async () => {
   }
 });
 
-async function JobsContent() {
+async function JobsContent({ initial }: { initial: BrowseCriteria }) {
   const listings = await getListings();
   if (!listings) return (
     <>
@@ -63,17 +64,21 @@ async function JobsContent() {
 
   return (
     <>
-      <JobTable jobs={jobs} fetchedAt={listings.fetchedAt} checked={checked} />
+      <JobTable jobs={jobs} fetchedAt={listings.fetchedAt} checked={checked} initial={initial} />
       <RefreshListings fetchedAt={listings.fetchedAt} interval={refreshInterval} />
     </>
   );
 }
 
-export default function Home() {
+export default function Home({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
+  const initial = readBrowseParams({ get(key) {
+    const value = searchParams[key];
+    return (Array.isArray(value) ? value[0] : value) ?? null;
+  } });
   return (
     <div className="board-shell">
       <Suspense fallback={<><BoardHeader /><main id="jobs" className="board-width board-loading" role="status">Loading listings…</main></>}>
-        <JobsContent />
+        <JobsContent initial={initial} />
       </Suspense>
     </div>
   );

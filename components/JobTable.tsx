@@ -2,20 +2,19 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, ArrowUpRight, Bookmark, BookmarkCheck, Check, ChevronDown, Copy, Globe2, Search, SlidersHorizontal, X } from 'lucide-react';
+import { columns, sources, scopes, readBrowseParams, writeBrowseParams, type SortKey, type Scope, type BrowseCriteria } from '@/lib/browseParams';
+import { searchTerms, indexJob, jobMatches, highlightWords } from '@/lib/jobSearch';
 import BoardHeader from './BoardHeader';
 import type { Job, AtsSource } from '@/types/job';
 
 const PAGE_SIZE = 50;
 const SAVED_KEY = 'design-jobs:saved';
 const MODE_KEY = 'design-jobs:view-mode';
-const sources: Record<AtsSource, string> = {
-  yc: 'Y Combinator', ashby: 'Ashby', greenhouse: 'Greenhouse', lever: 'Lever', remotive: 'Remotive', workday: 'Workday',
-};
 function listingSources(job: Job): AtsSource[] {
   return job.sources?.length ? job.sources : [job.ats];
 }
 
-function JobLocation({ job, query }: { job: Job; query: string }) {
+function JobLocation({ job, terms }: { job: Job; terms: string[] }) {
   const raw = job.location.trim();
   // Preserve mixed arrangements such as “Remote or in-office in San Francisco”.
   const location = job.isRemote
@@ -25,49 +24,26 @@ function JobLocation({ job, query }: { job: Job; query: string }) {
   return (
     <div className="listing-location">
       {job.isRemote && <span className="remote-label"><Globe2 size={13} aria-hidden="true" />Remote</span>}
-      {location ? <span><HighlightText text={location} query={query} /></span> : !job.isRemote && 'Location unavailable'}
+      {location ? <span><HighlightText text={location} terms={terms} /></span> : !job.isRemote && 'Location unavailable'}
     </div>
   );
 }
 
-const columns = { title: 'Role', company: 'Company', location: 'Location', postedAt: 'Listing date' };
-type SortKey = keyof typeof columns;
 function sortLabel(key: SortKey, ascending: boolean) {
   if (key === 'postedAt') return ascending ? 'Oldest first' : 'Newest first';
   return columns[key] + (ascending ? ' A–Z' : ' Z–A');
 }
 
-type Scope = 'All roles' | 'AI companies' | 'Saved';
-const scopes: Scope[] = ['All roles', 'AI companies', 'Saved'];
 function readSaved() {
   const ids: unknown = JSON.parse(localStorage.getItem(SAVED_KEY) ?? '[]');
   return new Set<string>(Array.isArray(ids) ? ids.filter(id => typeof id === 'string') : []);
 }
 
-function HighlightText({ text, query }: { text: string; query: string }) {
-  const value = text || '';
-  const needle = query.trim();
-  if (!needle) return <>{value}</>;
-
-  const lower = value.toLowerCase();
-  const target = needle.toLowerCase();
-  const parts: React.ReactNode[] = [];
-  let cursor = 0;
-  let index = lower.indexOf(target);
-
-  while (index !== -1) {
-    if (index > cursor) parts.push(value.slice(cursor, index));
-    parts.push(
-      <mark key={`${index}-${target}`} className="search-match">
-        {value.slice(index, index + target.length)}
-      </mark>
-    );
-    cursor = index + target.length;
-    index = lower.indexOf(target, cursor);
-  }
-
-  if (cursor < value.length) parts.push(value.slice(cursor));
-  return <>{parts}</>;
+function HighlightText({ text, terms }: { text: string; terms: string[] }) {
+  if (!terms.length) return <>{text}</>;
+  return <>{highlightWords(text || '', terms).map((part, index) =>
+    part.matched ? <mark key={index} className="search-match">{part.value}</mark> : part.value
+  )}</>;
 }
 
 function CompanyAvatar({ job }: { job: Job }) {
@@ -82,19 +58,19 @@ function CompanyAvatar({ job }: { job: Job }) {
   );
 }
 
-const dateFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
-const shortDateFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 function ListingDate({ job, currentYear }: { job: Job; currentYear: number }) {
   if (!job.postedAt) return <>Date unavailable</>;
   const date = new Date(job.postedAt);
-  const full = dateFormat.format(date);
+  const short = date.getUTCDate() + ' ' + months[date.getUTCMonth()];
+  const full = short + ' ' + date.getUTCFullYear();
   const label = job.dateKind === 'updated' ? 'Updated' : job.dateKind === 'created' ? 'Created' : 'Posted';
   return (
     <>
       <span>{label}</span>{' '}
       <time dateTime={job.postedAt} title={full} aria-label={full}>
-        {date.getUTCFullYear() === currentYear ? shortDateFormat.format(date) : full}
+        {date.getUTCFullYear() === currentYear ? short : full}
       </time>
     </>
   );
@@ -105,16 +81,17 @@ interface Props {
   jobs: Job[];
   fetchedAt: number;
   checked: string;
+  initial: BrowseCriteria;
 }
 
-export default function JobTable({ jobs, fetchedAt, checked }: Props) {
-  const [scope, setScope] = useState<Scope>('All roles');
-  const [search, setSearch] = useState('');
-  const [remote, setRemote] = useState(false);
-  const [week, setWeek] = useState(false);
-  const [source, setSource] = useState('all');
-  const [sortKey, setSortKey] = useState<SortKey>('postedAt');
-  const [ascending, setAscending] = useState(false);
+export default function JobTable({ jobs, fetchedAt, checked, initial }: Props) {
+  const [scope, setScope] = useState<Scope>(initial.scope);
+  const [search, setSearch] = useState(initial.search);
+  const [remote, setRemote] = useState(initial.remote);
+  const [week, setWeek] = useState(initial.week);
+  const [source, setSource] = useState(initial.source);
+  const [sortKey, setSortKey] = useState<SortKey>(initial.sortKey);
+  const [ascending, setAscending] = useState(initial.ascending);
   const [saved, setSaved] = useState(new Set<string>());
   const [detail, setDetail] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -132,7 +109,36 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
   const emptyAction = useRef<HTMLButtonElement>(null);
   const firstNewRow = useRef<string | null>(null);
   const results = useRef<HTMLHeadingElement>(null);
-  const query = search.trim().toLowerCase();
+  const terms = useMemo(() => searchTerms(search), [search]);
+  const indexed = useMemo(() => jobs.map(job => ({ job, index: indexJob(job) })), [jobs]);
+
+  useEffect(() => {
+    function restore() {
+      const state = readBrowseParams(new URL(window.location.href).searchParams);
+      setSearch(state.search); setScope(state.scope); setRemote(state.remote); setWeek(state.week);
+      setSource(state.source); setSortKey(state.sortKey); setAscending(state.ascending); setPage(0);
+    }
+    window.addEventListener('popstate', restore);
+    return () => window.removeEventListener('popstate', restore);
+  }, []);
+
+  useEffect(() => {
+    let retry: number | undefined;
+    function persist() {
+      const url = new URL(window.location.href);
+      writeBrowseParams(url.searchParams, { search, scope, remote, week, source, sortKey, ascending });
+      if (url.href === window.location.href) return;
+      try { window.history.replaceState(null, '', url); }
+      catch (error) {
+        if (!(error instanceof DOMException) || error.name !== 'SecurityError') throw error;
+        // Some browsers rate-limit history updates during rapid typing.
+        window.clearTimeout(retry);
+        retry = window.setTimeout(persist, 1000);
+      }
+    }
+    persist();
+    return () => window.clearTimeout(retry);
+  }, [search, scope, remote, week, source, sortKey, ascending]);
 
   useEffect(() => {
     function sync() {
@@ -198,8 +204,8 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
   }
 
   const savedCount = jobs.filter(job => saved.has(job.id)).length;
-  const matches = useMemo(() => {
-    const filtered = jobs.filter(job => {
+  const { matches, closeTitles } = useMemo(() => {
+    const candidates = indexed.filter(({ job }) => {
       if (scope === 'Saved' && !saved.has(job.id)) return false;
       if (scope === 'AI companies' && !job.isAI) return false;
       if (remote && !job.isRemote) return false;
@@ -208,16 +214,22 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
         const age = fetchedAt - Date.parse(job.postedAt);
         if (job.dateKind !== 'posted' || !(age >= 0 && age <= 7 * 86400000)) return false;
       }
-      return !query || [job.title, job.company, job.location].some(value => value.toLowerCase().includes(query));
+      return true;
     });
-    return filtered.sort((a, b) => {
+    let hits = search.trim() && !terms.length ? [] : candidates.filter(({ index }) => jobMatches(index, terms));
+    const exactCount = hits.length;
+    if (!exactCount && terms.some(term => term.length >= 5)) {
+      hits = candidates.filter(({ index }) => jobMatches(index, terms, true));
+    }
+    const matches = hits.map(({ job }) => job).sort((a, b) => {
       if (sortKey === 'postedAt' && Boolean(a.postedAt) !== Boolean(b.postedAt)) return a.postedAt ? -1 : 1;
       const left = a[sortKey].toLowerCase();
       const right = b[sortKey].toLowerCase();
       const order = left < right ? -1 : left > right ? 1 : 0;
       return ascending ? order : -order;
     });
-  }, [jobs, scope, saved, remote, source, week, fetchedAt, query, sortKey, ascending]);
+    return { matches, closeTitles: !exactCount && matches.length > 0 };
+  }, [indexed, scope, saved, remote, source, week, fetchedAt, search, terms, sortKey, ascending]);
   const overview = useMemo(() => ({
     companies: new Set(matches.map(job => job.company)).size,
     remote: matches.filter(job => job.isRemote).length,
@@ -333,6 +345,7 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
                     <span>{overview.remote} remote</span>
                   </>}
                 </h2>
+                {closeTitles && <span role="status">Including close title matches</span>}
                 {customSort && <span className="sort-summary">{sortLabel(sortKey, ascending)}</span>}
                 {source !== 'all' && <button type="button" className="filter-chip" aria-label={'Remove ' + sources[source as AtsSource] + ' filter'}
                   onClick={() => { setSource('all'); setPage(0); filterTrigger.current?.focus(); }}>{sources[source as AtsSource]} <X size={12} /></button>}
@@ -354,14 +367,14 @@ export default function JobTable({ jobs, fetchedAt, checked }: Props) {
               </div>
               <div role="rowgroup">{visible.map(job => <div className="listing-row" role="row" key={job.id}>
                 <div role="cell" className="role-cell">
-                  <a id={'listing-' + job.id} href={job.url} target="_blank" rel="noopener noreferrer" className="role-title"><span><HighlightText text={job.title} query={query} /><span className="title-arrow" aria-hidden="true">{'\u2060'}<ArrowUpRight size={13} /></span></span></a>
+                  <a id={'listing-' + job.id} href={job.url} target="_blank" rel="noopener noreferrer" className="role-title"><span><HighlightText text={job.title} terms={terms} /><span className="title-arrow" aria-hidden="true">{'\u2060'}<ArrowUpRight size={13} /></span></span></a>
                   {detail && job.department && <div className="role-detail">{job.department}</div>}
                 </div>
                 <div className="listing-meta" role="presentation">
                   <div role="cell" className="company-cell"><a href={job.companyDomain ? 'https://' + job.companyDomain : job.url} target="_blank" rel="noopener noreferrer">
-                    <CompanyAvatar key={job.logoUrl || job.companyDomain} job={job} /><span><HighlightText text={job.company} query={query} />{detail && job.batch && <small>{job.batch}</small>}</span>
+                    <CompanyAvatar key={job.logoUrl || job.companyDomain} job={job} /><span><HighlightText text={job.company} terms={terms} />{detail && job.batch && <small>{job.batch}</small>}</span>
                   </a>{detail && job.department && <span className="compact-department">{job.department}</span>}</div>
-                  <div role="cell" className="location-cell"><JobLocation job={job} query={query} /></div>
+                  <div role="cell" className="location-cell"><JobLocation job={job} terms={terms} /></div>
                 </div>
                 <div className="listing-foot" role="presentation">
                   <div className="listing-attribution" role="presentation">
