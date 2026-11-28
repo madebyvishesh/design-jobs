@@ -88,3 +88,8 @@ A public board for finding and saving design vacancies. Next.js and React serve 
 - Refined the expanded job header on tablet and desktop. The company mark leads one aligned title and employer stack. Remote eligibility stays visible as secondary text beside the employer. Phones keep the available title width.
 - On expanded phone cards, Save follows the title row and the collapse control follows the employer row, including when titles wrap. The logo lines up with the title edge, and a remote badge that wraps starts under the employer name. Checked short, multiline, remote and onsite headers.
 - Redesigned the expanded phone card around a full-width title. The company logo and name share a row with Save and Collapse. The remote eligibility badge now accompanies Location; both location and pay use the full width on phones.
+
+## Studio coverage · 28 November 2026
+
+- GitHub Actions checks PORTO ROCHA, Pentagram, Koto and Base Design directly, the Workable accounts for Jones Knowles Ritchie, Wolff Olins, DesignStudio, Moving Brands and ustwo, seven additional Greenhouse studio/agency boards, The Brand Identity and Open Roles. The existing role match, snapshot, six-month window and publication workflow apply.
+- Selected established studios and brands may publish jobs with undisclosed pay. Smaller directory employers need a numeric salary or rate. Open Roles requires a verified employer destination, and documented expiry, general opportunities and closed pages are excluded. Publisher names appear in the existing portal selector.

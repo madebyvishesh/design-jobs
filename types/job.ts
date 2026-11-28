@@ -1,4 +1,4 @@
-export type AtsSource = 'ashby' | 'greenhouse' | 'lever' | 'yc' | 'remotive' | 'workday' | 'employer';
+export type AtsSource = 'ashby' | 'greenhouse' | 'lever' | 'yc' | 'remotive' | 'workday' | 'employer' | 'tbi' | 'openroles';
 
 export type Job = {
   id: string;
@@ -10,6 +10,7 @@ export type Job = {
   isRemote: boolean;
   url: string;
   postedAt: string;
+  validThrough?: string;
   boardKey?: string;
   lastVerifiedAt?: number;
   firstSeenAt?: number;

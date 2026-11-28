@@ -8,7 +8,7 @@ const INCLUDE_KEYWORDS = [
   'product design', 'visual design',
   'brand design', 'graphic design', 'motion design',
   'interaction design', 'service design',
-  'creative director', 'art director',
+  'creative director', 'art director', 'motion director', 'brand director', 'design intern',
   'ux researcher', 'user researcher', 'design researcher',
   'content designer', 'conversation designer',
   'illustration', 'typography',

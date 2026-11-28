@@ -4,7 +4,7 @@ import { countries, levels } from './discoveryFilters';
 import type { AtsSource } from '@/types/job';
 
 export const sources: Record<AtsSource, string> = {
-  yc: 'Y Combinator', ashby: 'Ashby', greenhouse: 'Greenhouse', lever: 'Lever', remotive: 'Remotive', workday: 'Workday', employer: 'Company careers',
+  yc: 'Y Combinator', ashby: 'Ashby', greenhouse: 'Greenhouse', lever: 'Lever', remotive: 'Remotive', workday: 'Workday', employer: 'Company careers', tbi: 'The Brand Identity', openroles: 'Open Roles',
 };
 export const columns = { title: 'Role', company: 'Company', location: 'Location', postedAt: 'Listing date' };
 export type SortKey = keyof typeof columns;

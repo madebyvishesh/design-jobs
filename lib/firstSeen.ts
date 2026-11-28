@@ -53,6 +53,7 @@ export function withFirstSeen(next: JobsPayload, previous: JobsPayload | null): 
     }
   }
   function withinWindow(job: JobsPayload['allJobs'][number]) {
+    if (job.validThrough && Date.parse(job.validThrough) < next.fetchedAt) return false;
     const eligible = listingKnownSince(job, history[job.id]) >= cutoff;
     if (!eligible) expiredCount++;
     return eligible;

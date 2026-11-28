@@ -25,7 +25,7 @@ export function expiredListingIds(snapshot: JobsPayload, cutoff: number) {
     if (Math.min(observed, snapshot.ageEvidence?.[id] ?? observed) < cutoff) expired.add(id);
   }
   for (const job of [...snapshot.aiJobs, ...snapshot.allJobs]) {
-    if (listingKnownSince(job, snapshot.fetchedAt) < cutoff) expired.add(job.id);
+    if ((job.validThrough && Date.parse(job.validThrough) < Date.now()) || listingKnownSince(job, snapshot.fetchedAt) < cutoff) expired.add(job.id);
   }
   return Array.from(expired);
 }

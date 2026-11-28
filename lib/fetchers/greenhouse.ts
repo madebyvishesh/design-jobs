@@ -53,6 +53,13 @@ async function fetchGreenhouseJobs(slug: string, name: string, domain: string, b
 }
 
 const GREENHOUSE_COMPANIES: Array<{ slug: string; name: string; domain: string; batch?: string }> = [
+  { slug: 'akqa', name: 'AKQA', domain: 'akqa.com' },
+  { slug: 'hugeinc', name: 'Huge', domain: 'hugeinc.com' },
+  { slug: 'codeandtheory', name: 'Code and Theory', domain: 'codeandtheory.com' },
+  { slug: 'designbridge', name: 'Design Bridge and Partners', domain: 'designbridge.com' },
+  { slug: 'landor', name: 'Landor', domain: 'landor.com' },
+  { slug: 'dept', name: 'DEPT®', domain: 'dept.global' },
+  { slug: 'metalab', name: 'Metalab', domain: 'metalab.com' },
   // AI / ML
   { slug: 'cresta', name: 'Cresta', domain: 'cresta.com', batch: 'S18' },
   { slug: 'openai', name: 'OpenAI', domain: 'openai.com', batch: 'W16' },
