@@ -6,7 +6,7 @@ import { jobFields } from './jobFields';
 import { indexJob, jobMatches, searchTerms } from './jobSearch';
 
 export function prepareListing(job: Job) {
-  return { job, arrangement:arrangementOf(job), employment:employmentOf(job), places:locationNames(job), bands:payBands(job.salary), index: indexJob(job), fields: jobFields(job.title,job.department), level: experienceLevel(job.title),
+  return { job, arrangement:arrangementOf(job), employment:employmentOf(job), places:locationNames(job), bands:payBands(job.salary), index: indexJob(job), fields: jobFields(job.title,job.department,job.companyDomain), level: experienceLevel(job.title),
     region: job.isRemote ? remoteEligibility(job.location) : null };
 }
 

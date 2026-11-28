@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { load, type CheerioAPI } from 'cheerio';
 import { collectBoards, readBoardJson, type BoardListings, type BoardReport } from '../boardFetch';
+import { studioDomains, studioName } from './studioDirectory';
 import { isDesignRole } from '../filterJobs';
 import type { AtsSource, Job } from '../../types/job';
 
@@ -9,6 +10,7 @@ const porto = 'https://www.portorocha.com/about';
 const pentagram = 'https://www.pentagram.com/careers';
 const base = 'https://www.basedesign.com/jobs';
 const workableStudios = [
+  ['wearebulletproof', 'Bulletproof', 'wearebulletproof.com'],
   ['jones-knowles-ritchie', 'Jones Knowles Ritchie', 'jkrglobal.com'],
   ['wolff-olins', 'Wolff Olins', 'wolffolins.com'],
   ['moving-brands', 'Moving Brands', 'movingbrands.com'],
@@ -21,6 +23,15 @@ const openRoles = 'https://openrol.es/';
 // Directories can introduce smaller studios with disclosed pay. Unpriced jobs
 // are limited to selected employers, matched on the publisher's company field.
 const established = new Set([
+  'brand new school',
+  'futuredeluxe',
+  'giant ant',
+  'manvsmachine',
+  'tendril',
+  'interbrand',
+  'bulletproof',
+  'studio dumbar',
+  'studio dumbar/dept',
   'porto rocha',
   'koto',
   'jones knowles ritchie',
@@ -53,7 +64,7 @@ const established = new Set([
 ]);
 
 // Open Roles links straight off-site. Verify only known employer destinations.
-const openEmployers: Record<string, [string, string]> = {
+const employerHosts: Record<string, [string, string]> = {
   'PORTO ROCHA': ['portorocha.com', 'www.portorocha.com'],
   Pentagram: ['pentagram.com', 'www.pentagram.com'],
   Koto: ['koto.com', 'koto.com'],
@@ -73,12 +84,15 @@ const openEmployers: Record<string, [string, string]> = {
   'New Territory': ['newterritory.studio', 'newterritory.studio'],
   'N4 Studio Ltd': ['n4.studio', 'www.n4.studio'],
 };
+const openEmployers = new Map(Object.entries(employerHosts).map(([name, host]) => [studioName(name), host]));
 const clean = (value: string) => value.replace(/\s+/g, ' ').trim();
 const cash = (value: string) => /(?:[$£€₹]\s*\d|\d[\d,.]*[kK]?\s*(?:USD|GBP|EUR|CAD|AUD|INR)\b)/i.test(value);
-function role(title: string) {
+function role(title: string, domain = '') {
   return (
-    isDesignRole(title) &&
-    !/future opportunities|talent pool|open application|expression of interest|enquir(?:y|ies)/i.test(title)
+    isDesignRole(title, '', domain) &&
+    !/future opportunities|talent pool|open application|general application|general interest|join our network|super-talent|expression of interest|enquir(?:y|ies)/i.test(
+      title,
+    )
   );
 }
 function eligible(company: string, salary?: string) {
@@ -314,6 +328,173 @@ async function workableStudio([slug, company, companyDomain]: string[]) {
     });
   return { feed, jobs, indexed: board.jobs.length };
 }
+interface CreativeBoard {
+  name: string;
+  domain: string;
+  index: string;
+  marker: RegExp;
+  links?: string;
+  title?: string;
+  location?: string;
+}
+const creativeBoards: CreativeBoard[] = [
+  {
+    name: 'Ragged Edge',
+    domain: 'raggededge.com',
+    index: 'https://raggededge.com/join',
+    marker: /ready for something different/i,
+    links: 'main a[href*="/join/"]',
+  },
+  {
+    name: 'DixonBaxi',
+    domain: 'dixonbaxi.com',
+    index: 'https://joinus.dixonbaxi.com/jobs',
+    marker: /jobs/i,
+    links: 'a[href^="/jobs/"]',
+    title: 'span:first-child',
+    location: 'span:nth-child(2)',
+  },
+  {
+    name: 'Tendril',
+    domain: 'tendril.studio',
+    index: 'https://tendril.studio/careers/',
+    marker: /available positions/i,
+    links: 'a.para[href^="/careers/"]',
+    title: 'span:first-child',
+    location: 'span:nth-child(2)',
+  },
+  {
+    name: 'ManvsMachine',
+    domain: 'mvsm.com',
+    index: 'https://mvsm.com/jobs',
+    marker: /jobs/i,
+    links: '.js-job-link',
+    title: 'h2',
+    location: '.job--meta',
+  },
+  { name: 'BUCK', domain: 'buck.co', index: 'https://buck.co/careers', marker: /current vacancies/i },
+  {
+    name: 'FutureDeluxe',
+    domain: 'futuredeluxe.com',
+    index: 'https://futuredeluxe.com/info',
+    marker: /vacancies/i,
+  },
+  {
+    name: 'Giant Ant',
+    domain: 'giantant.ca',
+    index: 'https://www.giantant.ca/careers',
+    marker: /current vacancies/i,
+    links: 'main section a[href]',
+  },
+  {
+    name: 'Instrument',
+    domain: 'instrument.com',
+    index: 'https://www.instrument.com/careers',
+    marker: /find your next job/i,
+    links: 'a:has(.jobs__list__item__title)',
+    title: '.jobs__list__item__title',
+    location: '.jobs__list__item__details__location',
+  },
+];
+async function creativeBoard(board: CreativeBoard): Promise<BoardListings> {
+  const $ = await indexPage(board.index);
+  if (board.domain === 'buck.co') {
+    const data = JSON.parse($('#__NEXT_DATA__').text());
+    const modules = data.props?.pageProps?.page?.modules;
+    const jobs = Array.isArray(modules) && modules.find((m) => Array.isArray(m.jobs))?.jobs;
+    if (!Array.isArray(jobs)) throw new Error('Missing BUCK hiring feed');
+    const candidates = jobs
+      .filter((j) => role(j.title, board.domain))
+      .map((j) => {
+        if (new URL(j.absoluteUrl).origin !== 'https://buck.homerun.co')
+          throw new Error('Changed BUCK application host');
+        return { title: j.title, url: j.absoluteUrl, location: j.locationName };
+      });
+    return details(board.index, candidates, (c, page) => creativeDetails(board, c, page));
+  }
+  $('script,style,nav,footer,noscript').remove();
+  if (!board.marker.test($('body').text())) throw new Error('Missing ' + board.name + ' hiring section');
+  if (board.domain === 'futuredeluxe.com') {
+    const jobs: Job[] = [];
+    const rows = $('.toggle-wrapper').filter(
+      (_, e) => $(e).closest('section').find('h2').first().text().trim() === 'Vacancies',
+    );
+    for (const e of rows.toArray()) {
+      const [title, location] = clean($(e).find('.toggle-trigger').text()).split(/\s+[-–]\s+/);
+      if (!role(title, board.domain)) continue;
+      const address = $(e)
+        .find('a[href*="airtable.com/"]')
+        .filter((_, a) => /apply/i.test($(a).text()))
+        .attr('href');
+      if (
+        !address ||
+        new URL(address).origin !== 'https://airtable.com' ||
+        !new URL(address).searchParams.get('subject')
+      )
+        throw new Error('Missing role-specific application');
+      jobs.push(
+        listing('employer', {
+          company: board.name,
+          companyDomain: board.domain,
+          title,
+          location,
+          url: new URL(address).href,
+        }),
+      );
+    }
+    return { jobs, feed: board.index, indexed: rows.length };
+  }
+  const candidates: Candidate[] = [];
+  $('.visually-hidden').remove();
+  for (const e of $(board.links!).toArray()) {
+    const a = $(e),
+      title = clean(board.title ? a.find(board.title).text() : a.text());
+    if (!role(title, board.domain)) continue;
+    const url = new URL(a.attr('href')!, board.index);
+    if (url.origin !== new URL(board.index).origin)
+      throw new Error('Changed application host for ' + board.name);
+    candidates.push({
+      title,
+      url: url.href,
+      location: board.location ? clean(a.find(board.location).text()) : '',
+    });
+  }
+  return details(board.index, candidates, (c, page) => creativeDetails(board, c, page));
+}
+
+function creativeDetails(board: CreativeBoard, c: Candidate, $: CheerioAPI) {
+  $('script,style,nav,footer,noscript').remove();
+  const text = clean($('main').text() || $('body').text());
+  if (
+    /applications (?:are |have )?closed|job (?:has been filled|is closed)|no longer accepting applications/i.test(
+      text,
+    )
+  )
+    return null;
+  if (!/apply|application/i.test(text)) throw new Error('Missing application instructions');
+  const heading = $('h2,h3,h4,strong')
+    .filter((_, e) => /^(?:salary|compensation):?$/i.test(clean($(e).text())))
+    .first();
+  const labeledPay = clean(heading.next().text());
+  const excerpt =
+    /(?:salary|compensation)\s*:?\s*((?:from\s+)?[$£€]\s*[\d.,]+[kK]?(?:\s*[-–]\s*[$£€]?\s*[\d.,]+[kK]?)?(?:\s*\/(?:hr|hour|year|day))?(?:\s+(?:USD|GBP|CAD|EUR))?)/i.exec(
+      text,
+    )?.[1];
+  const salary = excerpt || (labeledPay.length <= 120 && cash(labeledPay) ? labeledPay : undefined);
+  const [location, workplace] = (c.location || '').split(/\s+·\s+/);
+  return listing('employer', {
+    title: c.title,
+    url: c.url,
+    company: board.name,
+    companyDomain: board.domain,
+    location,
+    workplace,
+    salary,
+    isRemote: /\bremote\b/i.test(c.location || ''),
+    validThrough: dateLimit(text),
+  });
+}
+
 async function brandIdentity() {
   const candidates: Candidate[] = [],
     seen = new Set<string>();
@@ -327,7 +508,7 @@ async function brandIdentity() {
     for (const e of $('a[href^="/jobs/roles/"]').toArray()) {
       const title = clean($(e).text()),
         url = new URL($(e).attr('href')!, tbi);
-      if (role(title)) candidates.push({ title, url: url.href });
+      candidates.push({ title, url: url.href });
     }
     const next = $('a[rel="next"], a[aria-label="Next page"]').first().attr('href');
     index = next ? new URL(next, tbi).href : undefined;
@@ -344,7 +525,7 @@ async function brandIdentity() {
       salary = field($, 'Salary'),
       location = field($, 'Location'),
       contract = field($, 'Contract');
-    if (!role(data.title) || !eligible(company, salary)) return null;
+    if (!role(data.title, studioDomains.get(studioName(company))) || !eligible(company, salary)) return null;
     const website = data.hiringOrganization.sameAs;
     return listing('tbi', {
       url: c.url,
@@ -376,13 +557,20 @@ async function openRolesBoard() {
       .find('p')
       .map((_, p) => clean($(p).text()))
       .get();
-    const employer = openEmployers[company],
+    const knownDomain = studioDomains.get(studioName(company));
+    const employer = openEmployers.get(studioName(company)) || (knownDomain && [knownDomain, knownDomain]),
       salary = tags.find(cash);
-    if (!employer || !role(title) || !eligible(company, salary)) continue;
+    if (!employer || !role(title, employer[0]) || !eligible(company, salary)) continue;
     const address = $(e).attr('href') || '';
     if (!URL.canParse(address)) continue;
     const url = new URL(address);
-    if (url.protocol !== 'https:' || url.host !== employer[1] || url.username || url.password) continue;
+    if (
+      url.protocol !== 'https:' ||
+      (url.host !== employer[1] && url.host.replace(/^www\./, '') !== employer[0]) ||
+      url.username ||
+      url.password
+    )
+      continue;
     const workplace = tags.filter((tag) => /^(remote|hybrid|on.site)$/i.test(tag)).join(', ');
     candidates.push({
       title,
@@ -435,8 +623,16 @@ export async function fetchStudioJobs(report: BoardReport[]) {
       report,
       3,
     ),
+    collectBoards(
+      'employer',
+      creativeBoards,
+      (b) => ({ board: b.domain, domain: b.domain }),
+      creativeBoard,
+      report,
+      4,
+    ),
   ]);
-  const [studioJobs, brandJobs, openJobs, baseJobs, workableJobs] = groups;
+  const [studioJobs, brandJobs, openJobs, baseJobs, workableJobs, motionJobs] = groups;
   // One directory may link its own posting while the other links the employer.
   // Require a unique match and the same known employer domain before merging.
   function sameListing(a: Job, b: Job) {
@@ -469,6 +665,7 @@ export async function fetchStudioJobs(report: BoardReport[]) {
     ...studioJobs,
     ...baseJobs,
     ...workableJobs,
+    ...motionJobs,
     ...combined,
     ...openJobs.filter((job) => !mergedOpenUrls.has(job.url)),
   ];

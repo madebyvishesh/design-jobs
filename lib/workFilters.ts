@@ -83,6 +83,9 @@ export function payBands(salary = '') {
       max: Number((m[3] || m[2]).replace(/,/g, '')),
     });
   }
+  for (const m of Array.from(salary.matchAll(/[$£€]([\d,]+(?:\.\d+)?)\s*\/(hr|hour|day|week|month|year)\s+(USD|CAD|AUD|GBP|EUR)\b/gi))) {
+    bands.push({ currency: m[3].toUpperCase(), period: m[2].toLowerCase().replace(/^hr$/, 'hour'), max: Number(m[1].replace(/,/g, '')) });
+  }
   for (const segment of salary.split(/\s+\/\s+/)) {
     const range = segment.match(
       /[$€£¥]?([\d,]+(?:\.\d+)?)\s*[-–—]\s*[$€£¥]?([\d,]+(?:\.\d+)?)\s+([A-Z]{3})\b/,

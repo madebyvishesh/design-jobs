@@ -78,7 +78,7 @@ async function JobsContent({ initial, role }: { initial: BrowseCriteria; role:st
   const cutoff = sixMonthCutoff(Date.now());
   const expired = new Set(expiredListingIds(listings, cutoff));
   const jobs = [...listings.aiJobs, ...listings.allJobs].map(normalizeListing)
-    .filter(job => isDesignRole(job.title, job.department) && !expired.has(job.id))
+    .filter(job => isDesignRole(job.title, job.department, job.companyDomain) && !expired.has(job.id))
     .map(job => ({ ...job, ...classifyDate(job) }));
   if (role) {
     const job=jobs.find(j=>j.id===role);

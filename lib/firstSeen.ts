@@ -47,7 +47,7 @@ export function withFirstSeen(next: JobsPayload, previous: JobsPayload | null): 
       if (job.boardKey ? !board : !domains.has(job.ats + ':' + job.companyDomain)) continue;
       if (board?.unverifiedUrls && !board.unverifiedUrls.includes(job.url)) continue;
       const previousJob = normalizeListing(job);
-      if (!isDesignRole(previousJob.title, previousJob.department)) continue;
+      if (!isDesignRole(previousJob.title, previousJob.department, previousJob.companyDomain)) continue;
       (job.isAI ? aiJobs : allJobs).push({ ...remember(previousJob, previous.fetchedAt), lastVerifiedAt: job.lastVerifiedAt ?? previous.fetchedAt });
       seen.add(job.id);
     }

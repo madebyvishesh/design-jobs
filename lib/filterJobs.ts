@@ -70,8 +70,16 @@ const EXCLUDE_KEYWORDS = [
   'system design engineer', 'design engineer - memory', 'clock design',
 ];
 
-export function isDesignRole(title: string | undefined | null, department = ''): boolean {
+const motionStudios = new Set(['buck.co','futuredeluxe.com','tendril.studio','brandnewschool.com','mvsm.com','giantant.ca']);
+export function isStudioMotionRole(title: string, domain = '') {
+  return motionStudios.has(domain) &&
+    (/^(?:2d|3d|2d\/3d|cg|cgi|vfx|motion|animation)\s+(?:designer|artist|lead|animator|apprentice|director)\b/i.test(title) ||
+    /^(?:2d|3d) animation apprentice\b/i.test(title) || (domain === 'tendril.studio' && /^(director|sr\. artist)$/i.test(title)));
+}
+
+export function isDesignRole(title: string | undefined | null, department = '', domain = ''): boolean {
   if (!title) return false;
+  if (isStudioMotionRole(title, domain)) return true;
   const lower = title.toLowerCase();
   if (EXCLUDE_KEYWORDS.some(kw => lower.includes(kw))) return false;
   if (/\b(?:software|frontend|front.end|backend|back.end|full.stack|engineering)\b/.test(lower) &&

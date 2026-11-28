@@ -53,6 +53,8 @@ async function fetchGreenhouseJobs(slug: string, name: string, domain: string, b
 }
 
 const GREENHOUSE_COMPANIES: Array<{ slug: string; name: string; domain: string; batch?: string }> = [
+  { slug: 'interbrand', name: 'Interbrand', domain: 'interbrand.com' },
+  { slug: 'brandnewschool', name: 'Brand New School', domain: 'brandnewschool.com' },
   { slug: 'akqa', name: 'AKQA', domain: 'akqa.com' },
   { slug: 'hugeinc', name: 'Huge', domain: 'hugeinc.com' },
   { slug: 'codeandtheory', name: 'Code and Theory', domain: 'codeandtheory.com' },
