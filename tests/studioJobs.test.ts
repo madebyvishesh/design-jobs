@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { greenhouseSalary } from '../lib/jobPay';
 import { payBands } from '../lib/workFilters';
 import { isDesignRole } from '../lib/filterJobs';
 import { jobFields } from '../lib/jobFields';
@@ -159,4 +160,9 @@ test('motion studio roles survive classification, field selection and hourly pay
   assert.equal(isDesignRole('Director', 'Operations', 'other.com'), false);
   assert.ok(jobFields('Sr. Artist', '', 'tendril.studio').includes('motion'));
   assert.deepEqual(payBands('$22.60/hr USD'), [{ currency: 'USD', period: 'hour', max: 22.6 }]);
+});
+
+test('a studio salary range in Greenhouse body copy is visible without guessing a currency or period', () => {
+  assert.equal(greenhouseSalary('&lt;h3&gt;Salary Range&lt;/h3&gt;&lt;p&gt;$70,000 - $90,000&lt;/p&gt;'), '$70,000 - $90,000');
+  assert.equal(greenhouseSalary('Benefits: $100 - $200 wellness reimbursement. Salary is competitive.'), undefined);
 });
