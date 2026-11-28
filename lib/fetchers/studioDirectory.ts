@@ -8,7 +8,7 @@ export const directoryStudios: Record<string, string> = {
   'Art&Graft': 'artandgraft.com',
   CRCR: 'crcr.fr',
   FRAME: 'frame.dk',
-  'Gentleman Scholar': 'gentleman-scholar.com',
+  'Gentleman Scholar': 'helloscholar.com',
   Goldenwolf: 'goldenwolf.tv',
   Hornet: 'hellohornet.com',
   Laundry: 'laundry.studio',

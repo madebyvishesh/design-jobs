@@ -101,3 +101,5 @@ A public board for finding and saving design vacancies. Next.js and React serve 
 - Production comparison found the unversioned public Blob URL serving an earlier overwrite in the site region. Shared public reads now use a one-minute cache key while the previous successful snapshot remains available during a storage outage.
 - Directory reads are tagged separately from employer feeds. A successful directory read alone cannot trigger a write when all actual job boards are unavailable.
 - Removed The Brand Identity link from the listings footer.
+- Rechecked the 43 previously partial or unavailable directory studios. Added employer-specific readers for Scholar, Builders Club, Found Studio, Locomotive, FIELD.IO and Passion Pictures’ three division feeds. Scholar’s daily rates come from the role briefs. Builders Club, Found and Locomotive can publish openings with undisclosed pay.
+- Studio health now distinguishes explicit no-vacancy statements from inbox-only recruitment, social referrals and the two former studios now hiring through Duolingo. These channels do not create individual job listings.

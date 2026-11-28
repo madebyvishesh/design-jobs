@@ -24,6 +24,9 @@ const openRoles = 'https://openrol.es/';
 // are limited to selected employers, matched on the publisher's company field.
 const established = new Set([
   'art&graft',
+  'found studio',
+  'builders club',
+  'locomotive',
   'hornet',
   'nexus studios',
   'territory studio',
@@ -114,7 +117,7 @@ function dateLimit(text: string) {
   const day = Date.parse(match[1].replace(/(\d)(st|nd|rd|th)/i, '$1') + ' 23:59:59 GMT');
   return Number.isFinite(day) ? new Date(day).toISOString() : undefined;
 }
-export async function html(address: string) {
+export async function html(address: string, xml = false) {
   const origin = new URL(address).origin;
   let url = address;
   for (let n = 0; n < 5; n++) {
@@ -125,7 +128,7 @@ export async function html(address: string) {
       headers: { 'User-Agent': 'DesignJobs/1.0 (+https://github.com/madebyvishesh/design-jobs)' },
     });
     if (res.ok && !res.headers.get('cf-mitigated')) {
-      const page = load(await res.text());
+      const page = load(await res.text(), xml ? { xml: true } : undefined);
       if (/just a moment|attention required|access denied|checking your browser/i.test(page('title').text()))
         throw new Error('Publisher page unavailable');
       return page;
@@ -490,7 +493,7 @@ export function creativeDetails(board: CreativeBoard, c: Candidate, $: CheerioAP
     .first();
   const labeledPay = clean(heading.next().text());
   const excerpt =
-    /(?:salary|compensation)\s*[:–—-]?\s*((?:from\s+)?[$£€]\s*[\d.,]+[kK]?(?:\s*[-–]\s*[$£€]?\s*[\d.,]+[kK]?)?(?:\s*\/(?:hr|hour|year|day))?(?:\s+(?:USD|GBP|CAD|EUR))?)/i.exec(
+    /(?:salary|compensation|rate for this position (?:will be|is))\s*[:–—-]?\s*((?:from\s+)?[$£€]\s*[\d.,]+[kK]?(?:\s*[-–]\s*[$£€]?\s*[\d.,]+[kK]?)?(?:\s*\/(?:hr|hour|year|day))?(?:\s+(?:USD|GBP|CAD|EUR))?)/i.exec(
       text,
     )?.[1];
   const salary = excerpt || (labeledPay.length <= 120 && cash(labeledPay) ? labeledPay : undefined);

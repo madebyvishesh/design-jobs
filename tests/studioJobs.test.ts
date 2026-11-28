@@ -176,3 +176,53 @@ test('a successful directory read alone cannot replace the published job snapsho
   assert.equal(hasCompletedJobBoard([board]), false);
   assert.equal(hasCompletedJobBoard([board, { ...board, directory: false }]), true);
 });
+
+test('Scholar publishes the quoted daily rate and distinguishes a design internship from other openings', async (t) => {
+  const { discoverStudio } = await import('../lib/fetchers/studioDiscovery');
+  const pages = new Map([
+    [
+      'https://helloscholar.com/contact',
+      '<main>Opportunities<a href="/jobs/intern"><span class="title">Intern</span><span class="location">New York</span></a><a href="/jobs/producer"><span class="title">Producer</span></a></main>',
+    ],
+    [
+      'https://helloscholar.com/jobs/intern',
+      '<main><h1>Intern</h1><p>Illustration, design, 2D animation. The rate for this position is $200/day. Email your application.</p></main>',
+    ],
+  ]);
+  t.mock.method(
+    globalThis,
+    'fetch',
+    async (url: string) =>
+      new Response(pages.get(String(url)), { status: pages.has(String(url)) ? 200 : 404 }),
+  );
+  const result = await discoverStudio(['helloscholar.com', 'Gentleman Scholar']);
+  assert.equal(result.indexed, 2);
+  assert.deepEqual(
+    result.jobs.map((j) => [j.company, j.title, j.department, j.salary, j.location]),
+    [['Scholar', 'Intern', 'Design & Animation', '$200/day', 'New York']],
+  );
+});
+
+test('Found reads a linked brief with blank introductory paragraphs', async (t) => {
+  const { discoverStudio } = await import('../lib/fetchers/studioDiscovery');
+  const brief = 'https://docs.google.com/document/d/e/StudioBrief/pub';
+  const contact =
+    '<main>Open roles and new opportunities<div class="contact__roles"><article><h3>Midweight Designer</h3><a href="' +
+    brief +
+    '">Brief</a><a href="mailto:jobs@found-studio.com">Apply here</a></article></div></main>';
+  t.mock.method(
+    globalThis,
+    'fetch',
+    async (url: string) =>
+      new Response(
+        String(url) === brief
+          ? '<p></p><p>Job Advert<span>Midweight 3D Motion Designer</span></p><p>Apply to join our team in London.</p>'
+          : contact,
+      ),
+  );
+  const result = await discoverStudio(['found-studio.com', 'Found Studio']);
+  assert.deepEqual(
+    result.jobs.map((j) => [j.title, j.location, j.url]),
+    [['Midweight 3D Motion Designer', 'London', brief]],
+  );
+});

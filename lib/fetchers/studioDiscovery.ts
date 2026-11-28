@@ -1,3 +1,4 @@
+import { reviewedStudioBoard } from './reviewedStudioBoards';
 import type { CheerioAPI } from 'cheerio';
 import { collectBoards, type BoardListings, type BoardReport } from '../boardFetch';
 import { directoryPages, directoryStudios, studioName } from './studioDirectory';
@@ -25,6 +26,22 @@ const starts: Record<string, string> = {
   'hellohornet.com': 'https://www.hellohornet.com/careers',
   'studiodumbar.com': 'https://studiodumbar.com/jobs',
   'territorystudio.com': 'https://territorystudio.teamtailor.com/jobs',
+  'locomotive.ca': 'https://secure.collage.co/jobs/locomotive',
+  'builders-club.com': 'https://builders-club.com/contact',
+  'blinkink.co.uk': 'https://www.blinkink.co.uk/jobs',
+  'rocketandwink.com': 'https://www.rocketandwink.com/about/jobs',
+  'studiofeixen.ch': 'https://www.studiofeixen.ch/about/',
+  'littletroop.com': 'https://littletroop.com/info',
+  'gunner.work': 'https://www.gunner.school/our-story',
+  'animade.tv': 'https://archive.animade.tv/scoops/freelance-faq',
+  'hoodzpahdesign.com': 'https://hoodzpahdesign.com/contact/',
+  'dutch.scot': 'https://dutch.scot/contact/',
+  'heystudio.es': 'https://heystudio.es/contact/',
+  'laundry.studio': 'https://www.laundry.studio/contact',
+  'wizz.fr': 'https://wizz.fr/about',
+  'xk.studio': 'https://xk.studio/information',
+  'someform.studio': 'https://someform.studio/Information',
+  'themill.com': 'https://www.themill.com/contact',
   'frame.dk': 'https://frame.dk/careers/',
   'goldenwolf.tv': 'https://www.goldenwolf.tv/careers',
   'notreal.tv': 'https://notreal.tv/jobs',
@@ -32,10 +49,10 @@ const starts: Record<string, string> = {
   'passion-pictures.com': 'https://www.passion-animation.com/join-us/',
   'ordinaryfolk.co': 'https://www.ordinaryfolk.co/contact',
   'found-studio.com': 'https://www.found-studio.com/contact/',
-  'andwalsh.com': 'https://andwalsh.com/info/',
-  'gentleman-scholar.com': 'https://helloscholar.com/',
+  'andwalsh.com': 'https://andwalsh.com/contact/',
+  'helloscholar.com': 'https://helloscholar.com/contact',
   'psyop.com': 'https://www.psyop.com/contact/',
-  'field.io': 'https://field-io.notion.site/Careers-at-FIELD-IO-affb12ae22e144a881e221dddb71241c',
+  'field.io': 'https://field.io/join-us',
 };
 const trim = (s: string) => s.replace(/\s+/g, ' ').trim();
 const hiring =
@@ -140,12 +157,15 @@ function specialListings(domain: string, name: string, index: string, $: Cheerio
 }
 export async function discoverStudio([domain, name]: [string, string]): Promise<BoardListings> {
   const start = starts[domain] || 'https://' + domain + '/';
+  const reviewed = await reviewedStudioBoard(domain, name, start);
+  if (reviewed) return reviewed;
   const visited = new Set<string>(),
     candidates = new Map<string, { title: string; url: string }>();
   const queue = [start];
   let careers = Boolean(starts[domain]) && jobRoute.test(new URL(start).pathname),
     truncated = false;
   let checkedSitemap = false;
+  let contactChannel: string | undefined;
   while (queue.length) {
     const url = queue.shift()!;
     if (visited.has(url)) continue;
@@ -157,17 +177,57 @@ export async function discoverStudio([domain, name]: [string, string]): Promise<
     const $ = await indexPage(url);
     $('script,style,svg,noscript').remove();
     const bodyText = trim($('body').text());
-    if (domain === 'wonderkindco.co' && /positions are posted there/i.test(bodyText))
-      throw new Error('Employer advertises openings only on Instagram');
-    if (domain === 'field.io' && /JavaScript|enable javascript/i.test(bodyText) && !$('main h1').length)
-      throw new Error('Notion hiring page requires client rendering');
+    if (url === start) {
+      if (
+        (domain === 'gunner.work' && /studio was acquired by Duolingo/i.test(bodyText)) ||
+        (domain === 'animade.tv' && /acquired by Duolingo/i.test(bodyText))
+      ) {
+        return {
+          jobs: [],
+          feed: url,
+          indexed: 0,
+          incomplete: 'Independent studio joined Duolingo; vacancies tracked under Duolingo',
+        };
+      }
+      if (domain === 'wonderkindco.co' && /positions are posted there/i.test(bodyText)) {
+        return {
+          jobs: [],
+          feed: url,
+          indexed: 0,
+          incomplete: 'Official hiring page directs applicants to Instagram',
+        };
+      }
+    }
+    const recruitmentText =
+      bodyText +
+      ' ' +
+      $('a[href^="mailto:"]')
+        .map((_, a) => $(a).attr('href'))
+        .get()
+        .join(' ');
+    const inbox = recruitmentText.match(
+      /\b(?:jobs|careers|apply|intern|internships|freelance|team|work)@([a-z0-9.-]+\.[a-z]{2,})\b/i,
+    );
+    if (
+      inbox &&
+      (inbox[1].toLowerCase() === domain ||
+        (domain === 'mouthwash.studio' && inbox[1].toLowerCase() === 'mouthwash.co'))
+    )
+      contactChannel = 'Official application inbox: ' + inbox[0];
+    if (domain === 'psyop.com' && $('a[href^="https://form.jotform.com/"]').length)
+      contactChannel = 'Studio application form; no specific vacancy verified';
     if (/^(?:404|page not found)$/i.test(bodyText)) throw new Error('Employer page not found');
     if (
-      domain === 'passion-pictures.com' &&
-      /advertise our production vacancies on this site/i.test(bodyText) &&
-      !$('a[href*="thetalentmanager.com"]').filter((_, e) => !$(e).attr('href')?.startsWith('mailto:')).length
+      url === start &&
+      ((domain === 'hoodzpahdesign.com' && /not growing our team at the moment/i.test(bodyText)) ||
+        (domain === 'studiofeixen.ch' &&
+          /currently does not offer internship or full-time positions/i.test(bodyText)) ||
+        (domain === 'littletroop.com' &&
+          /not accepting applications for jobs or internships at this time/i.test(bodyText)) ||
+        (domain === 'rocketandwink.com' &&
+          /there are no open positions at rocket & wink anymore/i.test(bodyText)))
     )
-      throw new Error('Employer directs applicants to The Talent Manager');
+      return { jobs: [], feed: start, indexed: 0 };
     const headline = trim($('h1').first().text());
     if (
       jobRoute.test(new URL(url).pathname) &&
@@ -184,8 +244,7 @@ export async function discoverStudio([domain, name]: [string, string]): Promise<
     for (const link of links) {
       if (link.url.replace(/\/$/, '') === url.replace(/\/$/, '') || !link.title) continue;
       const jobPath = jobRoute.test(link.pathname);
-      const onBoard =
-        hiring.test(new URL(url).pathname) || (url === starts[domain] && !/contact\/?$/.test(url));
+      const onBoard = hiring.test(new URL(url).pathname);
       if ((jobPath || onBoard) && role(link.title, domain) && link.title.length < 130) {
         candidates.set(link.url, { title: link.title, url: link.url });
       } else if (
@@ -220,10 +279,10 @@ export async function discoverStudio([domain, name]: [string, string]): Promise<
     const job = creativeDetails({ domain, name, index: start, marker: /./ }, c, page);
     return job && eligible(name, job.salary) ? job : null;
   });
-  if (!result.incomplete && (!careers || truncated)) {
+  if (!result.incomplete && (!careers || truncated || (contactChannel && !candidates.size))) {
     result.incomplete = truncated
       ? 'Career index still contains unverified links'
-      : 'No public vacancy index identified';
+      : contactChannel || 'No public vacancy index identified';
     delete result.unverifiedUrls;
   }
   return result;

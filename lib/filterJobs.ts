@@ -72,6 +72,8 @@ const EXCLUDE_KEYWORDS = [
 
 const motionStudios = new Set(['buck.co','futuredeluxe.com','tendril.studio','brandnewschool.com','mvsm.com','giantant.ca']);
 export function isStudioMotionRole(title: string, domain = '') {
+  if (domain === 'helloscholar.com' && /^(?:C4D Artist|CG Lead)$/i.test(title)) return true;
+  if (domain === 'builders-club.com' && /^(?:Senior Houdini Artist|AI Artist)$/i.test(title)) return true;
   return motionStudios.has(domain) &&
     (/^(?:2d|3d|2d\/3d|cg|cgi|vfx|motion|animation)\s+(?:designer|artist|lead|animator|apprentice|director)\b/i.test(title) ||
     /^(?:2d|3d) animation apprentice\b/i.test(title) || (domain === 'tendril.studio' && /^(director|sr\. artist)$/i.test(title)));
@@ -79,6 +81,7 @@ export function isStudioMotionRole(title: string, domain = '') {
 
 export function isDesignRole(title: string | undefined | null, department = '', domain = ''): boolean {
   if (!title) return false;
+  if (domain === 'helloscholar.com' && title === 'Intern' && department === 'Design & Animation') return true;
   if (domain === 'studiodumbar.com' && title === 'Creative Coding Intern') return true;
   if (isStudioMotionRole(title, domain)) return true;
   const lower = title.toLowerCase();
