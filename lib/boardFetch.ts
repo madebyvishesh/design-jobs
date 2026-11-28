@@ -1,6 +1,7 @@
 import type { AtsSource, Job } from '@/types/job';
 
 export interface BoardReport {
+  directory?: boolean;
   source: AtsSource;
   board: string;
   domain: string;
@@ -10,6 +11,10 @@ export interface BoardReport {
   feed?: string;
   indexed?: number;
   unverifiedUrls?: string[];
+}
+
+export function hasCompletedJobBoard(report?: BoardReport[]) {
+  return Boolean(report?.some(board => !board.directory && board.status === 'ok'));
 }
 
 export interface BoardListings {

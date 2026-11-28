@@ -5,6 +5,7 @@
  * Usage: npx tsx scripts/fetch-and-cache.ts
  * Required env: BLOB_READ_WRITE_TOKEN
  */
+import { hasCompletedJobBoard } from '../lib/boardFetch';
 import { readPublisherSnapshot, setCachedJobs } from '../lib/jobsCache';
 import { fetchAllDesignJobs } from '../lib/fetchAllJobs';
 
@@ -27,7 +28,7 @@ async function main() {
 
   console.log(`Fetched ${total} jobs (${aiJobs.length} AI + ${allJobs.length} non-AI) in ${elapsed}s`);
 
-  if (!report.some(board => board.status === 'ok')) {
+  if (!hasCompletedJobBoard(report)) {
     console.error('No board could be read successfully; keeping the previous publication');
     process.exit(1);
   }

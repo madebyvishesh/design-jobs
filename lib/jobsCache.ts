@@ -1,6 +1,6 @@
 import type { Job } from '@/types/job';
 
-import type { BoardReport } from './boardFetch';
+import { hasCompletedJobBoard, type BoardReport } from './boardFetch';
 import { withFirstSeen } from './firstSeen';
 
 export interface JobsPayload {
@@ -43,7 +43,7 @@ export async function getCachedJobs(): Promise<JobsPayload | null> {
     }
     const snapshot: JobsPayload = await response.json();
     return Array.isArray(snapshot?.aiJobs) && Array.isArray(snapshot.allJobs) &&
-      (snapshot.aiJobs.length + snapshot.allJobs.length > 0 || snapshot.report?.some(board => board.status === 'ok')) && Number.isFinite(snapshot.fetchedAt)
+      (snapshot.aiJobs.length + snapshot.allJobs.length > 0 || hasCompletedJobBoard(snapshot.report)) && Number.isFinite(snapshot.fetchedAt)
       ? snapshot : null;
   } catch {
     return null;
@@ -79,7 +79,7 @@ export async function readPublisherSnapshot() {
 
 export async function setCachedJobs(payload: JobsPayload, baseline: Awaited<ReturnType<typeof readPublisherSnapshot>>): Promise<JobsPayload> {
   const { put, BlobPreconditionFailedError } = await import('@vercel/blob');
-  if (!payload.report?.some(board => board.status === 'ok')) throw new Error('No board completed this refresh');
+  if (!hasCompletedJobBoard(payload.report)) throw new Error('No board completed this refresh');
   if (baseline && baseline.snapshot.fetchedAt > payload.fetchedAt) return baseline.snapshot;
   const snapshot = withFirstSeen(payload, baseline?.snapshot ?? null);
   try {

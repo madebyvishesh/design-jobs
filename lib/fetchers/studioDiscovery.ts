@@ -230,6 +230,7 @@ export async function discoverStudio([domain, name]: [string, string]): Promise<
 }
 export async function fetchDirectoryStudios(report: BoardReport[]) {
   const catalog = new Map(Object.entries(directoryStudios).map(([name, domain]) => [domain, name]));
+  const directoryReport: BoardReport[] = [];
   await collectBoards(
     'employer',
     directoryPages,
@@ -256,9 +257,10 @@ export async function fetchDirectoryStudios(report: BoardReport[]) {
         ...(unknown.length ? { incomplete: 'Unverified new studio names: ' + unknown.join(', ') } : {}),
       };
     },
-    report,
+    directoryReport,
     2,
   );
+  report.push(...directoryReport.map((board) => ({ ...board, directory: true })));
   return collectBoards(
     'employer',
     Array.from(catalog).filter(([domain]) => !dedicated.has(domain)),

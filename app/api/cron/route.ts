@@ -1,3 +1,4 @@
+import { hasCompletedJobBoard } from '@/lib/boardFetch';
 import { NextResponse } from 'next/server';
 import { fetchAllDesignJobs } from '@/lib/fetchAllJobs';
 import { readPublisherSnapshot, setCachedJobs } from '@/lib/jobsCache';
@@ -25,7 +26,7 @@ export async function GET(request: Request) {
   const prior = baseline?.snapshot;
   const jobs = await fetchAllDesignJobs(prior ? [...prior.aiJobs, ...prior.allJobs] : []);
 
-  if (!jobs.report.some(board => board.status === 'ok')) {
+  if (!hasCompletedJobBoard(jobs.report)) {
     return NextResponse.json({ error: 'No listings returned by sources' }, { status: 503 });
   }
 

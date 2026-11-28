@@ -99,3 +99,4 @@ A public board for finding and saving design vacancies. Next.js and React serve 
 - Added Nexus Studios, Hornet, Art&Graft and Studio Dumbar hiring routes. Distinct internship disciplines retain their individual listing IDs. General portfolio invitations and jobs without sufficient publishing evidence are excluded.
 - The Brand Identity requires written permission for automated collection. The owner confirmed there is no permission. Removed all automated requests to this source and linked directly to the publisher’s jobs page in the footer.
 - Production comparison found the unversioned public Blob URL serving an earlier overwrite in the site region. Shared public reads now use a one-minute cache key while the previous successful snapshot remains available during a storage outage.
+- Directory reads are tagged separately from employer feeds. A successful directory read alone cannot trigger a write when all actual job boards are unavailable.

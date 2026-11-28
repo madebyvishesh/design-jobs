@@ -5,7 +5,7 @@ import { payBands } from '../lib/workFilters';
 import { isDesignRole } from '../lib/filterJobs';
 import { jobFields } from '../lib/jobFields';
 import { fetchStudioJobs } from '../lib/fetchers/studios';
-import type { BoardReport } from '../lib/boardFetch';
+import { hasCompletedJobBoard, type BoardReport } from '../lib/boardFetch';
 
 test('studio refresh excludes expired roles, preserves pay and uses only enabled publishers', async (t) => {
   const porto = 'https://www.portorocha.com/about';
@@ -162,4 +162,17 @@ test('studio discovery follows official sitemap vacancies and rejects a portfoli
     report.jobs.map((j) => [j.title, j.salary]),
     [['Brand Designer', '£45k-60k']],
   );
+});
+
+test('a successful directory read alone cannot replace the published job snapshot', () => {
+  const board: BoardReport = {
+    board: 'directory',
+    domain: 'example.com',
+    source: 'employer',
+    status: 'ok',
+    received: 0,
+    directory: true,
+  };
+  assert.equal(hasCompletedJobBoard([board]), false);
+  assert.equal(hasCompletedJobBoard([board, { ...board, directory: false }]), true);
 });
