@@ -724,7 +724,6 @@ export default function JobTable({ jobs, cutoff, expiredIds, fetchedAt, checked,
       </main>
       <footer className="board-footer board-width">
         <span>Last checked {checkedTime}</span>
-        <a href="https://the-brandidentity.com/jobs" target="_blank" rel="noopener noreferrer">Jobs on The Brand Identity <ArrowUpRight size={14} aria-hidden="true" /></a>
         <a href="#job-search" onClick={event => { event.preventDefault(); input.current?.focus(); input.current?.scrollIntoView({ block: 'center' }); }}>Back to search <ArrowUp size={14} aria-hidden="true" /></a>
       </footer>
       <ListingHint board={rowGroup} />
