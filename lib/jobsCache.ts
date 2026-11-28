@@ -28,7 +28,10 @@ export async function getCachedJobs(): Promise<JobsPayload | null> {
   try {
     let response: Response;
     if (publicUrl) {
-      response = await fetch(publicUrl, { cache: 'no-store', signal });
+      const url = new URL(publicUrl);
+      // Readers in the same minute share an edge cache entry after a snapshot overwrite.
+      url.searchParams.set('publicationMinute', String(Math.floor(Date.now() / 60000)));
+      response = await fetch(url, { cache: 'no-store', signal });
       if (!response.ok) return null;
     } else {
       const { head } = await import('@vercel/blob');

@@ -7,16 +7,8 @@ import { jobFields } from '../lib/jobFields';
 import { fetchStudioJobs } from '../lib/fetchers/studios';
 import type { BoardReport } from '../lib/boardFetch';
 
-test('studio refresh distinguishes expired, undisclosed, paid, missing and temporarily unreadable openings', async (t) => {
-  const tbi = 'https://the-brandidentity.com/jobs';
+test('studio refresh excludes expired roles, preserves pay and uses only enabled publishers', async (t) => {
   const porto = 'https://www.portorocha.com/about';
-  const portalRows = [
-    ['known', 'Feels Like', 'Undisclosed'],
-    ['unknown', 'Small Studio', 'Undisclosed'],
-    ['paid', 'New Genre', '£36,000 – £48,000/year'],
-    ['expired', 'Small Studio', '$80,000/year'],
-    ['unavailable', 'Unavailable Studio', '$70/hour'],
-  ];
   const pages = new Map<string, string>([
     [
       'https://www.pentagram.com/careers',
@@ -32,12 +24,6 @@ test('studio refresh distinguishes expired, undisclosed, paid, missing and tempo
       '<h2>How to Apply</h2><p>Apply by March 20th, 2020.</p>',
     ],
     [
-      tbi,
-      '<main>All roles ' +
-        portalRows.map(([key]) => '<a href="/jobs/roles/' + key + '">Designer</a>').join('') +
-        '</main>',
-    ],
-    [
       'https://openrol.es/',
       '<a data-framer-name="Desktop" href="https://www.newgenre.studio/join/designer"><img alt="Job listing profile photo"><p>Designer</p><p>New Genre</p><p>London</p><p>Full-Time</p><p>£36,000 – £48,000</p></a>',
     ],
@@ -46,6 +32,7 @@ test('studio refresh distinguishes expired, undisclosed, paid, missing and tempo
   pages.set('https://www.basedesign.com/jobs', '<h1>Work with us</h1>');
   for (const [slug, name] of [
     ['jones-knowles-ritchie', 'Jones Knowles Ritchie'],
+    ['nexusstudios', 'Nexus Studios'],
     ['wearebulletproof', 'Bulletproof'],
     ['wolff-olins', 'Wolff Olins'],
     ['moving-brands', 'Moving Brands'],
@@ -110,23 +97,6 @@ test('studio refresh distinguishes expired, undisclosed, paid, missing and tempo
     ],
   ])
     pages.set(url, body);
-  for (const [key, name, pay] of portalRows.slice(0, -1)) {
-    const data = {
-      '@type': 'JobPosting',
-      title: 'Designer',
-      hiringOrganization: { name, sameAs: key === 'paid' ? 'https://newgenre.studio' : undefined },
-      datePosted: '2026-11-10',
-      validThrough: key === 'expired' ? '2020-01-01' : undefined,
-    };
-    pages.set(
-      tbi + '/roles/' + key,
-      '<script type="application/ld+json">' +
-        JSON.stringify(data) +
-        '</script><dl><dt>Salary</dt><dd>' +
-        pay +
-        '</dd><dt>Location</dt><dd>London, UK</dd></dl>',
-    );
-  }
   t.mock.method(globalThis, 'fetch', async (input: RequestInfo | URL) => {
     const url = String(input);
     if (url.endsWith('/unavailable')) return new Response(null, { status: 503 });
@@ -135,22 +105,14 @@ test('studio refresh distinguishes expired, undisclosed, paid, missing and tempo
   });
   const report: BoardReport[] = [];
   const jobs = await fetchStudioJobs(report);
-  assert.deepEqual(jobs.map((job) => job.company).sort(), [
-    'BUCK',
-    'Feels Like',
-    'Jones Knowles Ritchie',
-    'New Genre',
-  ]);
+  assert.deepEqual(jobs.map((job) => job.company).sort(), ['BUCK', 'Jones Knowles Ritchie', 'New Genre']);
   assert.ok(
-    report.every((b) => b.status === (b.source === 'tbi' ? 'partial' : 'ok')),
+    report.every((b) => b.status === 'ok'),
     JSON.stringify(report),
   );
   assert.equal(jobs.find((job) => job.company === 'BUCK')?.salary, '$22.60/hr USD');
-  assert.equal(jobs.find((job) => job.company === 'Feels Like')?.salary, undefined);
-  assert.deepEqual(jobs.find((job) => job.company === 'New Genre')?.sources, ['tbi', 'openroles']);
-  assert.deepEqual(report.find((board) => board.source === 'tbi')?.unverifiedUrls, [
-    tbi + '/roles/unavailable',
-  ]);
+  assert.deepEqual(jobs.find((job) => job.company === 'New Genre')?.sources, ['openroles']);
+  assert.ok(!report.some((b) => b.domain === 'the-brandidentity.com'));
   assert.equal(report.find((board) => board.domain === 'portorocha.com')?.received, 0);
 });
 
@@ -163,6 +125,41 @@ test('motion studio roles survive classification, field selection and hourly pay
 });
 
 test('a studio salary range in Greenhouse body copy is visible without guessing a currency or period', () => {
-  assert.equal(greenhouseSalary('&lt;h3&gt;Salary Range&lt;/h3&gt;&lt;p&gt;$70,000 - $90,000&lt;/p&gt;'), '$70,000 - $90,000');
-  assert.equal(greenhouseSalary('Benefits: $100 - $200 wellness reimbursement. Salary is competitive.'), undefined);
+  assert.equal(
+    greenhouseSalary('&lt;h3&gt;Salary Range&lt;/h3&gt;&lt;p&gt;$70,000 - $90,000&lt;/p&gt;'),
+    '$70,000 - $90,000',
+  );
+  assert.equal(
+    greenhouseSalary('Benefits: $100 - $200 wellness reimbursement. Salary is competitive.'),
+    undefined,
+  );
+});
+
+test('studio discovery follows official sitemap vacancies and rejects a portfolio invitation', async (t) => {
+  const { discoverStudio } = await import('../lib/fetchers/studioDiscovery');
+  const home = 'https://sample.studio/';
+  const pages = new Map([
+    [home, '<main>Independent design studio</main>'],
+    [home + 'sitemap.xml', '<urlset><url><loc>' + home + 'jobs</loc></url></urlset>'],
+    [
+      home + 'jobs',
+      '<a href="/jobs/brand-designer">Brand Designer</a><a href="/jobs/register">General Application</a>',
+    ],
+    [home + 'jobs/register', '<h1>General Application</h1>'],
+    [
+      home + 'jobs/brand-designer',
+      '<main><h1>Brand Designer</h1><p>Salary — £45k-60k</p>Apply today.</main>',
+    ],
+  ]);
+  t.mock.method(
+    globalThis,
+    'fetch',
+    async (input: RequestInfo | URL) =>
+      new Response(pages.get(String(input)), { status: pages.has(String(input)) ? 200 : 404 }),
+  );
+  const report = await discoverStudio(['sample.studio', 'Sample Studio']);
+  assert.deepEqual(
+    report.jobs.map((j) => [j.title, j.salary]),
+    [['Brand Designer', '£45k-60k']],
+  );
 });

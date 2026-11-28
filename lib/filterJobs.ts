@@ -79,6 +79,7 @@ export function isStudioMotionRole(title: string, domain = '') {
 
 export function isDesignRole(title: string | undefined | null, department = '', domain = ''): boolean {
   if (!title) return false;
+  if (domain === 'studiodumbar.com' && title === 'Creative Coding Intern') return true;
   if (isStudioMotionRole(title, domain)) return true;
   const lower = title.toLowerCase();
   if (EXCLUDE_KEYWORDS.some(kw => lower.includes(kw))) return false;

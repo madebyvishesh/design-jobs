@@ -1,4 +1,5 @@
 import type { Job } from '../types/job';
+import { fetchDirectoryStudios } from './fetchers/studioDiscovery';
 import { fetchStudioJobs } from './fetchers/studios';
 import { fetchYCJobs } from './fetchers/yc';
 import { fetchAllAshbyJobs } from './fetchers/ashby';
@@ -17,7 +18,7 @@ export async function fetchAllDesignJobs(previous: Job[] = []) {
     collectBoards('yc', ['public'], board => ({ board, domain: '' }), fetchYCJobs, report),
     fetchAllAshbyJobs(report), fetchAllGreenhouseJobs(report), fetchAllLeverJobs(report),
     collectBoards('remotive', ['public'], board => ({ board, domain: '' }), fetchRemotiveJobs, report),
-    fetchAllWorkdayJobs(report, previous), fetchStudioJobs(report),
+    fetchAllWorkdayJobs(report, previous), fetchStudioJobs(report), fetchDirectoryStudios(report),
   ]);
   const sorted = mergePostings(groups.flat().map(normalizeListing).filter(job => isDesignRole(job.title, job.department, job.companyDomain)))
     .sort((a,b) => b.postedAt.localeCompare(a.postedAt));

@@ -78,3 +78,11 @@ export function studioName(name: string) {
 export const studioDomains = new Map(
   Object.entries(directoryStudios).map(([name, domain]) => [studioName(name), domain]),
 );
+
+export const directoryPages = [
+  {
+    name: 'Creative Boom',
+    url: 'https://www.creativeboom.com/inspiration/the-25-best-graphic-design-studios-in-the-world-as-voted-for-by-the-industry/',
+  },
+  { name: 'Motionimo', url: 'https://motionimo.xyz/studios' },
+];

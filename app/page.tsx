@@ -33,7 +33,7 @@ const getPublished = unstable_cache(async () => {
   const snapshot = await getCachedJobs();
   if (!snapshot) throw new Error('Published job snapshot unavailable');
   return snapshot;
-}, ['listings-published-v1'], { revalidate: 60 });
+}, ['listings-published-v2'], { revalidate: 60 });
 
 const getFallback = unstable_cache(fetchSnapshot, ['listings-fallback-v4'], { revalidate: 1800 });
 let pendingFetch: ReturnType<typeof fetchSnapshot> | undefined;
